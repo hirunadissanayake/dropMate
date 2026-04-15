@@ -1,0 +1,183 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  CUSTOMER
+  TRAVELER
+  ADMIN
+}
+
+enum UserStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum ParcelStatus {
+  PENDING
+  MATCHED
+  PICKED_UP
+  IN_TRANSIT
+  ARRIVED
+  DELIVERED
+  CANCELLED
+}
+
+enum TripStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+}
+
+enum MatchStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+}
+
+enum OtpType {
+  LOGIN
+  PICKUP
+  DELIVERY
+  PASSWORD_RESET
+}
+
+enum DeliveryMethod {
+  DIRECT
+  PICKUP_POINT
+  DOOR_DELIVERY
+}
+
+model User {
+  id              String      @id @default(cuid())
+  name            String
+  phone           String      @unique
+  email           String?     @unique
+  password        String?
+  selfieUrl       String?
+  nicFrontUrl     String?
+  nicBackUrl      String?
+  
+  // Traveler specific
+  weightCapacity  Float?
+  vehicleType     String?
+
+  termsAccepted   Boolean     @default(false)
+
+  roleRequested   UserRole
+  roleActive      UserRole?
+
+  status          UserStatus  @default(PENDING)
+
+  rating          Float       @default(0)
+  trustScore      Float       @default(50)
+
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  parcels         Parcel[]    @relation("UserParcels")
+  trips           Trip[]      @relation("UserTrips")
+  otps            Otp[]
+  sentMatches     Match[]     @relation("SenderMatches")
+  travelerMatches Match[]     @relation("TravelerMatches")
+}
+
+model Parcel {
+  id              String        @id @default(cuid())
+  senderId        String
+  sender          User          @relation("UserParcels", fields: [senderId], references: [id])
+
+  fromLocation    String
+  toLocation      String
+  weight          Float
+  description     String?
+  imageUrl        String?
+
+  // ✅ NEW RECEIVER SYSTEM
+  receiverName    String
+  receiverPhone   String
+  deliveryMethod  DeliveryMethod @default(DIRECT)
+  deliveryAddress String?       // optional for door delivery
+  note            String?       // optional instructions
+
+  status          ParcelStatus  @default(PENDING)
+
+  matchedTripId   String?
+  matchedTrip     Trip?         @relation(fields: [matchedTripId], references: [id])
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  matches         Match[]
+}
+
+model Trip {
+  id            String      @id @default(cuid())
+  travelerId    String
+  traveler      User        @relation("UserTrips", fields: [travelerId], references: [id])
+
+  fromLocation  String
+  toLocation    String
+  travelDate    DateTime
+
+  capacityKg    Float
+  usedCapacity  Float       @default(0)
+
+  status        TripStatus  @default(ACTIVE)
+
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  parcels       Parcel[]
+  matches       Match[]
+}
+
+model Match {
+  id            String       @id @default(cuid())
+
+  parcelId      String
+  parcel        Parcel       @relation(fields: [parcelId], references: [id])
+
+  tripId        String
+  trip          Trip         @relation(fields: [tripId], references: [id])
+
+  senderId      String
+  travelerId    String
+
+  sender        User         @relation("SenderMatches", fields: [senderId], references: [id])
+  traveler      User         @relation("TravelerMatches", fields: [travelerId], references: [id])
+
+  score         Float
+
+  status        MatchStatus  @default(PENDING)
+
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+}
+
+model Otp {
+  id          String     @id @default(cuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+
+  code        String
+  type        OtpType
+
+  expiresAt   DateTime
+  createdAt   DateTime   @default(now())
+}
+
+model AdminAction {
+  id          String   @id @default(cuid())
+  adminId     String
+  action      String
+  targetId    String
+  createdAt   DateTime @default(now())
+}
