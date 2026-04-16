@@ -13,11 +13,6 @@ enum UserRole {
   ADMIN
 }
 
-enum UserStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
 
 enum ParcelStatus {
   PENDING
@@ -71,10 +66,14 @@ model User {
 
   termsAccepted   Boolean     @default(false)
 
-  roleRequested   UserRole
-  roleActive      UserRole?
+  // ✅ NEW ROLE SYSTEM
+  isCustomerRequested  Boolean @default(false)
+  isTravelerRequested  Boolean @default(false)
 
-  status          UserStatus  @default(PENDING)
+  isCustomerApproved   Boolean @default(false)
+  isTravelerApproved   Boolean @default(false)
+
+  roleActive           UserRole?
 
   rating          Float       @default(0)
   trustScore      Float       @default(50)

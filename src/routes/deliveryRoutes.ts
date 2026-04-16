@@ -2,12 +2,12 @@ import express from 'express';
 import { 
   requestMatch, initiatePickup, verifyPickup, initiateDelivery, verifyDelivery 
 } from '../controllers/deliveryController';
-import { protect, isApproved } from '../middlewares/authMiddleware';
+import { protect, isTraveler } from '../middlewares/authMiddleware';
 
 const router = express.Router();
 
 router.use(protect);
-router.use(isApproved);
+router.use(isTraveler);
 
 router.post('/match-request', requestMatch);
 router.post('/pickup/initiate', initiatePickup);

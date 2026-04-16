@@ -1,12 +1,12 @@
 import express from 'express';
 import { createParcel, getMyParcels, cancelParcel } from '../controllers/parcelController';
-import { protect, isApproved } from '../middlewares/authMiddleware';
+import { protect, isCustomer } from '../middlewares/authMiddleware';
 
 const router = express.Router();
 
-// Users must be logged in AND approved by Admin to use these
+// Users must be logged in AND in approved Customer mode
 router.use(protect);
-router.use(isApproved);
+router.use(isCustomer);
 
 router.post('/create', createParcel);
 router.get('/my', getMyParcels);

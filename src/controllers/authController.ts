@@ -74,13 +74,18 @@ export const requestOtp = async (req: Request, res: Response) => {
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
+      const isCustomer = roleRequested === 'CUSTOMER';
+      const isTraveler = roleRequested === 'TRAVELER';
+
       const user = await prisma.user.create({
         data: {
           phone,
           name,
           email,
           password: hashedPassword,
-          roleRequested: roleRequested as UserRole,
+          isCustomerRequested: isCustomer,
+          isTravelerRequested: isTraveler,
+          roleActive: roleRequested as UserRole,
           selfieUrl,
           nicFrontUrl,
           nicBackUrl,
@@ -273,7 +278,13 @@ export const login = async (req: Request, res: Response) => {
 
     // Generate JWT
     const token = jwt.sign(
-      { id: user.id, phone: user.phone, role: user.roleActive || user.roleRequested, status: user.status },
+      { 
+        id: user.id, 
+        phone: user.phone, 
+        roleActive: user.roleActive,
+        isCustomerApproved: user.isCustomerApproved,
+        isTravelerApproved: user.isTravelerApproved
+      },
       process.env.JWT_SECRET || 'secret',
       { expiresIn: '7d' }
     );
@@ -283,8 +294,11 @@ export const login = async (req: Request, res: Response) => {
       user: {
         id: user.id,
         name: user.name,
-        role: user.roleActive || user.roleRequested,
-        status: user.status,
+        roleActive: user.roleActive,
+        isCustomerApproved: user.isCustomerApproved,
+        isTravelerApproved: user.isTravelerApproved,
+        isCustomerRequested: user.isCustomerRequested,
+        isTravelerRequested: user.isTravelerRequested,
       },
     });
   } catch (error: any) {
@@ -327,7 +341,13 @@ export const verifyOtp = async (req: Request, res: Response) => {
 
     // Generate JWT
     const token = jwt.sign(
-      { id: user.id, phone: user.phone, role: user.roleActive || user.roleRequested, status: user.status },
+      { 
+        id: user.id, 
+        phone: user.phone, 
+        roleActive: user.roleActive,
+        isCustomerApproved: user.isCustomerApproved,
+        isTravelerApproved: user.isTravelerApproved
+      },
       process.env.JWT_SECRET || 'secret',
       { expiresIn: '7d' }
     );
@@ -337,13 +357,202 @@ export const verifyOtp = async (req: Request, res: Response) => {
       user: {
         id: user.id,
         name: user.name,
-        role: user.roleActive || user.roleRequested,
-        status: user.status,
+        roleActive: user.roleActive,
+        isCustomerApproved: user.isCustomerApproved,
+        isTravelerApproved: user.isTravelerApproved,
+        isCustomerRequested: user.isCustomerRequested,
+        isTravelerRequested: user.isTravelerRequested,
       },
     });
   } catch (error: any) {
     console.error('--- VERIFY OTP ERROR ---');
     console.dir(error, { depth: null });
     res.status(500).json({ message: 'Internal server error', error: error.message || error });
+  }
+};
+export const getMe = async (req: any, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.id },
+    });
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json(user);
+  } catch (error: any) {
+    res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+};
+
+export const switchRole = async (req: any, res: Response) => {
+  try {
+    const { role } = req.body;
+    const userId = req.user.id;
+
+    if (role !== 'CUSTOMER' && role !== 'TRAVELER') {
+      return res.status(400).json({ message: 'Invalid role' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (role === 'CUSTOMER' && !user.isCustomerApproved) {
+      return res.status(403).json({ message: 'Customer role is not approved' });
+    }
+    if (role === 'TRAVELER' && !user.isTravelerApproved) {
+      return res.status(403).json({ message: 'Traveler role is not approved' });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: { roleActive: role as UserRole },
+    });
+
+    // Generate new token with updated roleActive
+    const token = jwt.sign(
+      { 
+        id: updatedUser.id, 
+        phone: updatedUser.phone, 
+        roleActive: updatedUser.roleActive,
+        isCustomerApproved: updatedUser.isCustomerApproved,
+        isTravelerApproved: updatedUser.isTravelerApproved
+      },
+      process.env.JWT_SECRET || 'secret',
+      { expiresIn: '7d' }
+    );
+
+    res.status(200).json({
+      message: `Switched to ${role} mode`,
+      token,
+      user: updatedUser
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+};
+
+export const requestNewRole = async (req: any, res: Response) => {
+  try {
+    const { role, weightCapacity, vehicleType } = req.body;
+    const userId = req.user.id;
+
+    const files = req.files as { [fieldname: string]: Express.Multer.File[] };
+    const selfieUrl = files?.selfie?.[0]?.path;
+    const nicFrontUrl = files?.nicFront?.[0]?.path;
+    const nicBackUrl = files?.nicBack?.[0]?.path;
+
+    if (role !== 'CUSTOMER' && role !== 'TRAVELER') {
+      return res.status(400).json({ message: 'Invalid role' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user) return res.status(404).json({ message: 'User not found' });
+
+    const updateData: any = {};
+    if (role === 'CUSTOMER') {
+      if (user.isCustomerRequested) return res.status(400).json({ message: 'Customer role already requested' });
+      updateData.isCustomerRequested = true;
+    } else {
+      if (user.isTravelerRequested) return res.status(400).json({ message: 'Traveler role already requested' });
+      updateData.isTravelerRequested = true;
+      if (weightCapacity) updateData.weightCapacity = parseFloat(weightCapacity);
+      if (vehicleType) updateData.vehicleType = vehicleType;
+    }
+
+    // Update documents if provided
+    if (selfieUrl) updateData.selfieUrl = selfieUrl;
+    if (nicFrontUrl) updateData.nicFrontUrl = nicFrontUrl;
+    if (nicBackUrl) updateData.nicBackUrl = nicBackUrl;
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+    });
+
+    res.status(200).json({ message: `${role} role requested successfully`, user: updatedUser });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Internal server error', error: error.message });
+  }
+};
+
+export const updateUserProfile = async (req: any, res: Response) => {
+  try {
+    const { name, vehicleType, weightCapacity } = req.body;
+    const userId = req.user.id;
+    const roleActive = req.user.roleActive;
+
+    const updateData: any = {};
+
+    // 1. Block Admins from using this endpoint (they have /admin/update-profile)
+    if (roleActive === 'ADMIN') {
+      return res.status(403).json({ message: 'Admins must use the admin update endpoint' });
+    }
+
+    // 2. Both Customers and Travelers can update their name
+    if (roleActive === 'CUSTOMER' || roleActive === 'TRAVELER') {
+      if (name) updateData.name = name;
+    } else {
+      return res.status(403).json({ message: 'Invalid active role' });
+    }
+
+    // 3. ONLY Travelers can update vehicle-specific fields
+    if (roleActive === 'TRAVELER') {
+      if (vehicleType) updateData.vehicleType = vehicleType;
+      if (weightCapacity) updateData.weightCapacity = parseFloat(weightCapacity);
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ message: 'No valid fields provided for update' });
+    }
+
+    const updatedUser = await prisma.user.update({
+      where: { id: userId },
+      data: updateData,
+    });
+
+    res.status(200).json({ message: 'Profile updated successfully', user: updatedUser });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error updating user profile', error: error.message });
+  }
+};
+
+export const changePassword = async (req: any, res: Response) => {
+  try {
+    const { oldPassword, newPassword } = req.body;
+    const userId = req.user.id;
+    const roleActive = req.user.roleActive;
+
+    // 1. Block Admins (as per your role separation preference)
+    if (roleActive === 'ADMIN') {
+      return res.status(403).json({ message: 'Admins must use the admin password change logic' });
+    }
+
+    if (!oldPassword || !newPassword) {
+      return res.status(400).json({ message: 'Old and new passwords are required' });
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    if (!user || !user.password) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    // 2. Verify Old Password
+    const isMatch = await bcrypt.compare(oldPassword, user.password);
+    if (!isMatch) {
+      return res.status(401).json({ message: 'Incorrect old password' });
+    }
+
+    // 3. Hash and Update New Password
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    res.status(200).json({ message: 'Password changed successfully' });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error changing password', error: error.message });
   }
 };

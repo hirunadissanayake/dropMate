@@ -1,5 +1,18 @@
 import express from 'express';
-import { getPendingUsers, approveUser, getAllUsers, adminRegister, adminLogin, forgotPassword, verifyResetOtp, resetPassword } from '../controllers/adminController';
+import { 
+  getPendingUsers, 
+  approveUser, 
+  getAllUsers, 
+  adminRegister, 
+  adminLogin, 
+  forgotPassword, 
+  verifyResetOtp, 
+  resetPassword,
+  getApprovedCustomers,
+  getApprovedTravelers,
+  getAdminMe,
+  updateAdminProfile
+} from '../controllers/adminController';
 import { protect, isAdmin } from '../middlewares/authMiddleware';
 import { upload } from '../utils/cloudinary';
 
@@ -18,6 +31,12 @@ router.use(isAdmin);
 
 router.get('/pending', getPendingUsers);
 router.get('/all', getAllUsers);
+router.get('/customers', getApprovedCustomers);
+router.get('/travelers', getApprovedTravelers);
 router.post('/approve', approveUser);
+
+// Admin Profile
+router.get('/me', getAdminMe);
+router.put('/update-profile', updateAdminProfile);
 
 export default router;

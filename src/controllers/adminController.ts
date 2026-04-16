@@ -24,16 +24,14 @@ export const adminRegister = async (req: Request, res: Response) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const admin = await prisma.user.create({
-      data: {
-        name,
-        email,
-        phone,
-        password: hashedPassword,
-        roleRequested: 'ADMIN',
-        roleActive: 'ADMIN',
-        status: 'APPROVED',
-        termsAccepted: true,
-      },
+        data: {
+          name,
+          email,
+          phone,
+          password: hashedPassword,
+          roleActive: 'ADMIN',
+          termsAccepted: true,
+        },
     });
 
     res.status(201).json({ message: 'Admin registered successfully' });
@@ -50,7 +48,7 @@ export const adminLogin = async (req: Request, res: Response) => {
       where: { email },
     });
 
-    if (!user || user.roleRequested !== 'ADMIN') {
+    if (!user || user.roleActive !== 'ADMIN') {
       return res.status(401).json({ message: 'Invalid admin credentials' });
     }
 
@@ -60,14 +58,14 @@ export const adminLogin = async (req: Request, res: Response) => {
     }
 
     const token = jwt.sign(
-      { id: user.id, phone: user.phone, role: 'ADMIN', status: user.status },
+      { id: user.id, phone: user.phone, roleActive: 'ADMIN' },
       process.env.JWT_SECRET || 'secret',
       { expiresIn: '1d' }
     );
 
     res.status(200).json({
       token,
-      user: { id: user.id, name: user.name, role: 'ADMIN' },
+      user: { id: user.id, name: user.name, roleActive: 'ADMIN' },
     });
   } catch (error: any) {
     res.status(500).json({ message: 'Login error', error: error.message });
@@ -83,7 +81,7 @@ export const forgotPassword = async (req: Request, res: Response) => {
     }
 
     const user = await prisma.user.findFirst({
-      where: { phone, roleRequested: 'ADMIN' },
+      where: { phone, roleActive: 'ADMIN' },
     });
 
     if (!user) {
@@ -121,7 +119,7 @@ export const verifyResetOtp = async (req: Request, res: Response) => {
       },
     });
 
-    if (!user || user.roleRequested !== 'ADMIN') {
+    if (!user || user.roleActive !== 'ADMIN') {
       return res.status(400).json({ message: 'Admin account not found' });
     }
 
@@ -179,7 +177,12 @@ export const resetPassword = async (req: Request, res: Response) => {
 export const getPendingUsers = async (req: Request, res: Response) => {
   try {
     const users = await prisma.user.findMany({
-      where: { status: 'PENDING' },
+      where: {
+        OR: [
+          { isCustomerRequested: true, isCustomerApproved: false },
+          { isTravelerRequested: true, isTravelerApproved: false },
+        ]
+      },
     });
     res.status(200).json(users);
   } catch (error) {
@@ -189,19 +192,32 @@ export const getPendingUsers = async (req: Request, res: Response) => {
 
 export const approveUser = async (req: Request, res: Response) => {
   try {
-    const { userId, approve } = req.body; // approve: boolean
+    const { userId, role, approve } = req.body; // role: 'CUSTOMER' | 'TRAVELER', approve: boolean
+
+    if (role !== 'CUSTOMER' && role !== 'TRAVELER') {
+      return res.status(400).json({ message: 'Invalid role specified for approval' });
+    }
+
+    const updateData: any = {};
+    if (role === 'CUSTOMER') {
+      updateData.isCustomerApproved = approve;
+      if (!approve) updateData.isCustomerRequested = false;
+    } else {
+      updateData.isTravelerApproved = approve;
+      if (!approve) updateData.isTravelerRequested = false;
+    }
 
     const user = await prisma.user.update({
       where: { id: userId },
-      data: {
-        status: approve ? 'APPROVED' : 'REJECTED',
-        roleActive: approve ? undefined : null, // keep the role they requested if approved
-      },
+      data: updateData,
     });
 
-    res.status(200).json({ message: `User ${user.status}` });
-  } catch (error) {
-    res.status(500).json({ message: 'Error updating user status' });
+    res.status(200).json({ 
+      message: `User ${role} role ${approve ? 'approved' : 'rejected'}`,
+      user 
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error updating user status', error: error.message });
   }
 };
 
@@ -211,5 +227,63 @@ export const getAllUsers = async (req: Request, res: Response) => {
     res.status(200).json(users);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching users' });
+  }
+};
+
+export const getApprovedCustomers = async (req: Request, res: Response) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: { isCustomerApproved: true },
+    });
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching customers' });
+  }
+};
+
+export const getApprovedTravelers = async (req: Request, res: Response) => {
+  try {
+    const users = await prisma.user.findMany({
+      where: { isTravelerApproved: true },
+    });
+    res.status(200).json(users);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching travelers' });
+  }
+};
+
+export const getAdminMe = async (req: any, res: Response) => {
+  try {
+    const admin = await prisma.user.findUnique({
+      where: { id: req.user.id },
+    });
+
+    if (!admin || admin.roleActive !== 'ADMIN') {
+      return res.status(404).json({ message: 'Admin not found' });
+    }
+
+    res.status(200).json(admin);
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error fetching admin profile', error: error.message });
+  }
+};
+
+export const updateAdminProfile = async (req: any, res: Response) => {
+  try {
+    const { name } = req.body;
+    const adminId = req.user.id;
+
+    if (!name) {
+      return res.status(400).json({ message: 'Name is required' });
+    }
+
+    const updatedAdmin = await prisma.user.update({
+      where: { id: adminId },
+      data: { name }, 
+    });
+
+    res.status(200).json({ message: 'Admin profile updated successfully', admin: updatedAdmin });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error updating admin profile', error: error.message });
   }
 };

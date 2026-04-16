@@ -1,6 +1,6 @@
 import express from 'express';
 import { createTrip, getMyTrips, getAllActiveTrips } from '../controllers/tripController';
-import { protect, isApproved } from '../middlewares/authMiddleware';
+import { protect, isTraveler } from '../middlewares/authMiddleware';
 
 const router = express.Router();
 
@@ -8,7 +8,7 @@ const router = express.Router();
 router.get('/active', getAllActiveTrips);
 
 router.use(protect);
-router.use(isApproved);
+router.use(isTraveler);
 
 router.post('/create', createTrip);
 router.get('/my', getMyTrips);

@@ -26,14 +26,35 @@ export const protect = (req: AuthRequest, res: Response, next: NextFunction) => 
 };
 
 export const isApproved = (req: AuthRequest, res: Response, next: NextFunction) => {
-  if (req.user && req.user.status !== 'APPROVED') {
-    return res.status(403).json({ message: 'Account is pending approval. Please contact Admin.' });
+  const { roleActive, isCustomerApproved, isTravelerApproved } = req.user;
+
+  if (roleActive === 'CUSTOMER' && !isCustomerApproved) {
+    return res.status(403).json({ message: 'Customer role is not approved. Please contact Admin.' });
   }
+
+  if (roleActive === 'TRAVELER' && !isTravelerApproved) {
+    return res.status(403).json({ message: 'Traveler role is not approved. Please contact Admin.' });
+  }
+
   next();
 };
 
+export const isCustomer = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (req.user && req.user.roleActive === 'CUSTOMER' && req.user.isCustomerApproved) {
+    return next();
+  }
+  return res.status(403).json({ message: 'Access denied. You must be in an approved Customer mode.' });
+};
+
+export const isTraveler = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (req.user && req.user.roleActive === 'TRAVELER' && req.user.isTravelerApproved) {
+    return next();
+  }
+  return res.status(403).json({ message: 'Access denied. You must be in an approved Traveler mode.' });
+};
+
 export const isAdmin = (req: AuthRequest, res: Response, next: NextFunction) => {
-  if (req.user && req.user.role !== 'ADMIN') {
+  if (req.user && req.user.roleActive !== 'ADMIN') {
     return res.status(403).json({ message: 'Only admins can access this resource.' });
   }
   next();
