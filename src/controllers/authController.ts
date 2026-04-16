@@ -77,26 +77,23 @@ export const requestOtp = async (req: Request, res: Response) => {
       const isCustomer = roleRequested === 'CUSTOMER';
       const isTraveler = roleRequested === 'TRAVELER';
 
-      const user = await prisma.user.create({
-        data: {
-          phone,
-          name,
-          email,
-          password: hashedPassword,
-          isCustomerRequested: isCustomer,
-          isTravelerRequested: isTraveler,
-          roleActive: roleRequested as UserRole,
-          selfieUrl,
-          nicFrontUrl,
-          nicBackUrl,
-          weightCapacity: weightCapacity ? parseFloat(weightCapacity) : null,
-          vehicleType,
-          termsAccepted: termsAccepted === 'true' || termsAccepted === true,
-        },
-      });
+      const pendingData = {
+        name,
+        email,
+        password: hashedPassword,
+        isCustomerRequested: isCustomer,
+        isTravelerRequested: isTraveler,
+        roleActive: roleRequested,
+        selfieUrl,
+        nicFrontUrl,
+        nicBackUrl,
+        weightCapacity: weightCapacity ? parseFloat(weightCapacity) : null,
+        vehicleType,
+        termsAccepted: termsAccepted === 'true' || termsAccepted === true,
+      };
 
-      // Continue to OTP generation with the new user
-      await handleOtpFlow(user, res, 'LOGIN');
+      // Continue to OTP generation with pendingData instead of user
+      await handleOtpFlow(phone, res, 'REGISTRATION', pendingData);
     } else {
       // If user exists and this is just a login attempt (phone only)
       await handleOtpFlow(existingUserByPhone, res, 'LOGIN');
@@ -236,21 +233,27 @@ export const resetPassword = async (req: Request, res: Response) => {
 };
 
 // Helper function to handle OTP creation and sending
-async function handleOtpFlow(user: any, res: Response, type: any = 'LOGIN') {
+async function handleOtpFlow(userOrPhone: any, res: Response, type: any = 'LOGIN', pendingData?: any) {
   const code = generateOtp();
   const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
+  const isString = typeof userOrPhone === 'string';
+  const phone = isString ? userOrPhone : userOrPhone.phone;
+  const userId = isString ? undefined : userOrPhone.id;
+
   await prisma.otp.create({
     data: {
-      userId: user.id,
+      userId,
+      phone,
       code,
       type,
       expiresAt,
+      pendingData,
     },
   });
 
-  const messagePrefix = type === 'PASSWORD_RESET' ? 'Your password reset code' : 'Your DropMate login code';
-  await sendSms(user.phone, `${messagePrefix} is: ${code}`);
+  const messagePrefix = type === 'PASSWORD_RESET' ? 'Your password reset code' : (type === 'REGISTRATION' ? 'Your registration code' : 'Your DropMate login code');
+  await sendSms(phone, `${messagePrefix} is: ${code}`);
 
   res.status(200).json({ message: 'OTP sent successfully' });
 }
@@ -316,27 +319,70 @@ export const verifyOtp = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Phone and code are required' });
     }
 
-    const user = await prisma.user.findUnique({
-      where: { phone },
-      include: { otps: { where: { code, type: 'LOGIN' }, orderBy: { createdAt: 'desc' }, take: 1 } },
-    });
-
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+    let user = await prisma.user.findUnique({ where: { phone } });
 
     if (code === '123456') {
       // Temporary Master Bypass
+      if (!user) {
+        // Try to find pending registration data
+        const pendingOtp = await prisma.otp.findFirst({
+          where: { phone, type: 'REGISTRATION' },
+          orderBy: { createdAt: 'desc' }
+        });
+        if (pendingOtp && pendingOtp.pendingData) {
+          const p = pendingOtp.pendingData as any;
+          user = await prisma.user.create({
+            data: {
+              phone, name: p.name, email: p.email, password: p.password,
+              isCustomerRequested: p.isCustomerRequested, isTravelerRequested: p.isTravelerRequested,
+              roleActive: p.roleActive as UserRole, selfieUrl: p.selfieUrl, nicFrontUrl: p.nicFrontUrl,
+              nicBackUrl: p.nicBackUrl, weightCapacity: p.weightCapacity, vehicleType: p.vehicleType,
+              termsAccepted: p.termsAccepted,
+            }
+          });
+          await prisma.otp.delete({ where: { id: pendingOtp.id } });
+        } else {
+          return res.status(404).json({ message: 'User not found and no pending registration data' });
+        }
+      }
     } else {
-      if (user.otps.length === 0) {
+      const otpRecord = await prisma.otp.findFirst({
+        where: { phone, code, type: { in: ['LOGIN', 'REGISTRATION'] } },
+        orderBy: { createdAt: 'desc' }
+      });
+
+      if (!otpRecord) {
         return res.status(400).json({ message: 'Invalid or expired OTP' });
       }
-      const otp = user.otps[0];
-      if (new Date() > otp.expiresAt) {
+      if (new Date() > otpRecord.expiresAt) {
         return res.status(400).json({ message: 'OTP has expired' });
       }
+
+      if (otpRecord.type === 'REGISTRATION') {
+        if (!user && otpRecord.pendingData) {
+          const p = otpRecord.pendingData as any;
+          user = await prisma.user.create({
+            data: {
+              phone, name: p.name, email: p.email, password: p.password,
+              isCustomerRequested: p.isCustomerRequested, isTravelerRequested: p.isTravelerRequested,
+              roleActive: p.roleActive as UserRole, selfieUrl: p.selfieUrl, nicFrontUrl: p.nicFrontUrl,
+              nicBackUrl: p.nicBackUrl, weightCapacity: p.weightCapacity, vehicleType: p.vehicleType,
+              termsAccepted: p.termsAccepted,
+            }
+          });
+        }
+      } else {
+        if (!user) {
+          return res.status(404).json({ message: 'User not found' });
+        }
+      }
+
       // Delete OTP after successful use
-      await prisma.otp.delete({ where: { id: otp.id } });
+      await prisma.otp.delete({ where: { id: otpRecord.id } });
+    }
+
+    if (!user) {
+      return res.status(404).json({ message: 'User creation failed or user not found' });
     }
 
     // Generate JWT
