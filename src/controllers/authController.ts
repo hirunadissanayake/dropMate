@@ -17,7 +17,8 @@ export const requestOtp = async (req: Request, res: Response) => {
       roleRequested, 
       termsAccepted,
       weightCapacity,
-      vehicleType 
+      vehicleType,
+      nicNumber 
     } = req.body;
 
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
@@ -60,12 +61,12 @@ export const requestOtp = async (req: Request, res: Response) => {
       }
 
       if (roleRequested === 'CUSTOMER') {
-        if (!email || !selfieUrl || !nicFrontUrl || !nicBackUrl) {
-          return res.status(400).json({ message: 'Missing required fields for Customer registration (Email, Selfie, NIC Front/Back)' });
+        if (!email || !selfieUrl || !nicFrontUrl || !nicBackUrl || !nicNumber) {
+          return res.status(400).json({ message: 'Missing required fields for Customer registration (Email, Selfie, NIC Front/Back, NIC Number)' });
         }
       } else if (roleRequested === 'TRAVELER') {
-        if (!email || !selfieUrl || !nicFrontUrl || !nicBackUrl || !weightCapacity || !vehicleType) {
-          return res.status(400).json({ message: 'Missing required fields for Traveler registration (Email, Selfie, NIC Front/Back, Weight, Vehicle)' });
+        if (!email || !selfieUrl || !nicFrontUrl || !nicBackUrl || !weightCapacity || !vehicleType || !nicNumber) {
+          return res.status(400).json({ message: 'Missing required fields for Traveler registration (Email, Selfie, NIC Front/Back, Weight, Vehicle, NIC Number)' });
         }
       } else if (roleRequested !== 'ADMIN' && roleRequested !== 'CUSTOMER' && roleRequested !== 'TRAVELER') {
         return res.status(400).json({ message: 'Invalid role requested' });
@@ -87,6 +88,7 @@ export const requestOtp = async (req: Request, res: Response) => {
         selfieUrl,
         nicFrontUrl,
         nicBackUrl,
+        nicNumber,
         weightCapacity: weightCapacity ? parseFloat(weightCapacity) : null,
         vehicleType,
         termsAccepted: termsAccepted === 'true' || termsAccepted === true,
@@ -336,7 +338,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
               phone, name: p.name, email: p.email, password: p.password,
               isCustomerRequested: p.isCustomerRequested, isTravelerRequested: p.isTravelerRequested,
               roleActive: p.roleActive as UserRole, selfieUrl: p.selfieUrl, nicFrontUrl: p.nicFrontUrl,
-              nicBackUrl: p.nicBackUrl, weightCapacity: p.weightCapacity, vehicleType: p.vehicleType,
+              nicBackUrl: p.nicBackUrl, nicNumber: p.nicNumber, weightCapacity: p.weightCapacity, vehicleType: p.vehicleType,
               termsAccepted: p.termsAccepted,
             }
           });
@@ -366,7 +368,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
               phone, name: p.name, email: p.email, password: p.password,
               isCustomerRequested: p.isCustomerRequested, isTravelerRequested: p.isTravelerRequested,
               roleActive: p.roleActive as UserRole, selfieUrl: p.selfieUrl, nicFrontUrl: p.nicFrontUrl,
-              nicBackUrl: p.nicBackUrl, weightCapacity: p.weightCapacity, vehicleType: p.vehicleType,
+              nicBackUrl: p.nicBackUrl, nicNumber: p.nicNumber, weightCapacity: p.weightCapacity, vehicleType: p.vehicleType,
               termsAccepted: p.termsAccepted,
             }
           });
