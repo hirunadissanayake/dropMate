@@ -12,7 +12,7 @@ interface AuthRequest extends Request {
 export const createParcel = async (req: AuthRequest, res: Response) => {
   try {
     const { 
-      fromLocation, toLocation, weight, description, 
+      name, fromLocation, toLocation, weight, description, 
       receiverName, receiverPhone, deliveryMethod, deliveryAddress, note 
     } = req.body;
 
@@ -31,6 +31,7 @@ export const createParcel = async (req: AuthRequest, res: Response) => {
     const parcel = await prisma.parcel.create({
       data: {
         senderId: req.user.id,
+        name,
         fromLocation,
         toLocation,
         weight: parcelWeight,

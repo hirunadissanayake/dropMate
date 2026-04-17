@@ -95,6 +95,7 @@ model Parcel {
   senderId        String
   sender          User          @relation("UserParcels", fields: [senderId], references: [id])
 
+  name            String?
   fromLocation    String
   toLocation      String
   weight          Float
