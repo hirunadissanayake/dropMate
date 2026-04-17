@@ -13,6 +13,19 @@ import {
   getAdminMe,
   updateAdminProfile
 } from '../controllers/adminController';
+import { 
+  createRoute, 
+  getRoutes, 
+  updateRoute, 
+  deleteRoute,
+  createWeightSlab, 
+  getWeightSlabs, 
+  updateWeightSlab,
+  deleteWeightSlab,
+  updateConfig, 
+  getConfig,
+  deleteConfig
+} from '../controllers/pricingController';
 import { protect, isAdmin } from '../middlewares/authMiddleware';
 import { upload } from '../utils/cloudinary';
 
@@ -38,5 +51,24 @@ router.post('/approve', approveUser);
 // Admin Profile
 router.get('/me', getAdminMe);
 router.put('/update-profile', updateAdminProfile);
+
+// --- PRICING MANAGEMENT ---
+
+// Routes
+router.post('/routes', createRoute);
+router.get('/routes', getRoutes);
+router.put('/routes/:id', updateRoute);
+router.delete('/routes/:id', deleteRoute);
+
+// Weight Slabs
+router.post('/weight-slabs', createWeightSlab);
+router.get('/weight-slabs', getWeightSlabs);
+router.put('/weight-slabs/:id', updateWeightSlab);
+router.delete('/weight-slabs/:id', deleteWeightSlab);
+
+// Platform Config
+router.post('/config', updateConfig);
+router.get('/config', getConfig);
+router.delete('/config/:key', deleteConfig);
 
 export default router;

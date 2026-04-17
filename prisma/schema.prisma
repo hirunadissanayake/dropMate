@@ -99,7 +99,7 @@ model Parcel {
   toLocation      String
   weight          Float
   description     String?
-  imageUrl        String?
+  imageUrls       String[]
 
   // ✅ NEW RECEIVER SYSTEM
   receiverName    String
@@ -109,6 +109,14 @@ model Parcel {
   note            String?       // optional instructions
 
   status          ParcelStatus  @default(PENDING)
+
+  // Pricing fields
+  price           Float?        // Total customer pays
+  platformFee     Float?        // DropMate's cut
+  travelerPayout  Float?        // What traveler earns
+  
+  routeId         String?       // Link to which route was used
+  route           Route?        @relation(fields: [routeId], references: [id])
 
   matchedTripId   String?
   matchedTrip     Trip?         @relation(fields: [matchedTripId], references: [id])
@@ -186,4 +194,38 @@ model AdminAction {
   action      String
   targetId    String
   createdAt   DateTime @default(now())
+}
+
+model Route {
+  id            String   @id @default(cuid())
+  fromLocation  String                        // e.g., "Pettah"
+  toLocation    String                        // e.g., "Jaffna"
+  distanceKm    Float                         // e.g., 400
+  rate          Float                         // e.g., 1000 (LKR)
+  isActive      Boolean  @default(true)       // Admin can disable routes
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  parcels       Parcel[]
+
+  @@unique([fromLocation, toLocation])        // No duplicate routes
+}
+
+model WeightSlab {
+  id            String   @id @default(cuid())
+  minWeight     Float                         // e.g., 0
+  maxWeight     Float                         // e.g., 1
+  surcharge     Float                         // e.g., 0 (LKR)
+  label         String?                       // e.g., "Light (0-1 kg)"
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model PlatformConfig {
+  id               String   @id @default(cuid())
+  key              String   @unique           // e.g., "platformFeePercent"
+  value            String                     // e.g., "15"
+  description      String?                    // e.g., "Platform fee percentage"
+  updatedAt        DateTime @updatedAt
 }
