@@ -195,3 +195,45 @@ export const getPricePreview = async (req: Request, res: Response) => {
     res.status(400).json({ message: error.message });
   }
 };
+
+// --- LOCATION SELECTION ---
+
+export const getFromLocations = async (req: Request, res: Response) => {
+  try {
+    const locations = await prisma.route.findMany({
+      where: { isActive: true },
+      select: { fromLocation: true },
+      distinct: ['fromLocation'],
+      orderBy: { fromLocation: 'asc' }
+    });
+    
+    // Return flat array of strings
+    res.status(200).json(locations.map(l => l.fromLocation));
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching from locations' });
+  }
+};
+
+export const getToLocations = async (req: Request, res: Response) => {
+  try {
+    const { fromLocation } = req.query;
+    
+    if (!fromLocation) {
+      return res.status(400).json({ message: 'fromLocation is required' });
+    }
+
+    const locations = await prisma.route.findMany({
+      where: { 
+        fromLocation: fromLocation as string,
+        isActive: true 
+      },
+      select: { toLocation: true },
+      orderBy: { toLocation: 'asc' }
+    });
+    
+    // Return flat array of strings
+    res.status(200).json(locations.map(l => l.toLocation));
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching to locations' });
+  }
+};
