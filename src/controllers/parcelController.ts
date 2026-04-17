@@ -115,3 +115,42 @@ export const deleteParcel = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ message: 'Error deleting parcel' });
   }
 };
+
+export const getParcelById = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const parcel = await prisma.parcel.findUnique({
+      where: { id },
+      include: { 
+        sender: { select: { id: true, name: true, phone: true, rating: true } },
+        matchedTrip: { 
+          include: { 
+            traveler: { select: { id: true, name: true, phone: true, rating: true } } 
+          } 
+        }
+      }
+    });
+
+    if (!parcel) {
+      return res.status(404).json({ message: 'Parcel not found' });
+    }
+
+    // Authorization check
+    // Sender can see their own parcel
+    // Traveler can see if they are matched to it
+    // Admin can see everything
+    const isSender = parcel.senderId === req.user.id;
+    const isMatchedTraveler = parcel.matchedTrip?.travelerId === req.user.id;
+    
+    // Simple admin check (assuming req.user.role is set by protect middleware)
+    const isAdmin = req.user.role === 'ADMIN';
+
+    if (!isSender && !isMatchedTraveler && !isAdmin) {
+      return res.status(403).json({ message: 'Unauthorized to view this parcel' });
+    }
+
+    res.status(200).json(parcel);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching parcel details' });
+  }
+};
