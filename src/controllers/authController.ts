@@ -51,6 +51,16 @@ export const requestOtp = async (req: Request, res: Response) => {
         }
       }
 
+      // Check for existing NIC if provided
+      if (nicNumber) {
+        const existingUserByNic = await prisma.user.findUnique({
+          where: { nicNumber },
+        });
+        if (existingUserByNic) {
+          return res.status(400).json({ message: 'An account with this NIC number already exists.' });
+        }
+      }
+
       // Validation for new users
       if (!name || !roleRequested || !termsAccepted || !password || !confirmPassword) {
         return res.status(400).json({ message: 'Name, Role, Password, and Terms acceptance are required for new users' });

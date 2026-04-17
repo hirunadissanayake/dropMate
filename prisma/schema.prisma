@@ -60,7 +60,7 @@ model User {
   selfieUrl       String?
   nicFrontUrl     String?
   nicBackUrl      String?
-  nicNumber       String?
+  nicNumber       String?     @unique
     
   // Traveler specific
   weightCapacity  Float?
