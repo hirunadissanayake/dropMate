@@ -99,8 +99,6 @@ export const requestOtp = async (req: Request, res: Response) => {
         nicFrontUrl,
         nicBackUrl,
         nicNumber,
-        weightCapacity: weightCapacity ? parseFloat(weightCapacity) : null,
-        vehicleType,
         termsAccepted: termsAccepted === 'true' || termsAccepted === true,
       };
 
@@ -348,7 +346,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
               phone, name: p.name, email: p.email, password: p.password,
               isCustomerRequested: p.isCustomerRequested, isTravelerRequested: p.isTravelerRequested,
               roleActive: p.roleActive as UserRole, selfieUrl: p.selfieUrl, nicFrontUrl: p.nicFrontUrl,
-              nicBackUrl: p.nicBackUrl, nicNumber: p.nicNumber, weightCapacity: p.weightCapacity, vehicleType: p.vehicleType,
+              nicBackUrl: p.nicBackUrl, nicNumber: p.nicNumber,
               termsAccepted: p.termsAccepted,
             }
           });
@@ -378,7 +376,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
               phone, name: p.name, email: p.email, password: p.password,
               isCustomerRequested: p.isCustomerRequested, isTravelerRequested: p.isTravelerRequested,
               roleActive: p.roleActive as UserRole, selfieUrl: p.selfieUrl, nicFrontUrl: p.nicFrontUrl,
-              nicBackUrl: p.nicBackUrl, nicNumber: p.nicNumber, weightCapacity: p.weightCapacity, vehicleType: p.vehicleType,
+              nicBackUrl: p.nicBackUrl, nicNumber: p.nicNumber,
               termsAccepted: p.termsAccepted,
             }
           });
@@ -515,8 +513,6 @@ export const requestNewRole = async (req: any, res: Response) => {
     } else {
       if (user.isTravelerRequested) return res.status(400).json({ message: 'Traveler role already requested' });
       updateData.isTravelerRequested = true;
-      if (weightCapacity) updateData.weightCapacity = parseFloat(weightCapacity);
-      if (vehicleType) updateData.vehicleType = vehicleType;
     }
 
     // Update documents if provided
@@ -555,11 +551,7 @@ export const updateUserProfile = async (req: any, res: Response) => {
       return res.status(403).json({ message: 'Invalid active role' });
     }
 
-    // 3. ONLY Travelers can update vehicle-specific fields
-    if (roleActive === 'TRAVELER') {
-      if (vehicleType) updateData.vehicleType = vehicleType;
-      if (weightCapacity) updateData.weightCapacity = parseFloat(weightCapacity);
-    }
+    // 3. ONLY Travelers — no vehicle fields since they now belong to per-trip data
 
     if (Object.keys(updateData).length === 0) {
       return res.status(400).json({ message: 'No valid fields provided for update' });

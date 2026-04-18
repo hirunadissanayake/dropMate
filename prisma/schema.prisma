@@ -63,9 +63,6 @@ model User {
   nicNumber       String?     @unique
     
   // Traveler specific
-  weightCapacity  Float?
-  vehicleType     String?
-
   termsAccepted   Boolean     @default(false)
 
   // ✅ NEW ROLE SYSTEM
@@ -142,6 +139,7 @@ model Trip {
   travelTime    String?
   note          String?
   exactLocation String?
+  vehicleType   String?
 
   status        TripStatus  @default(ACTIVE)
 
