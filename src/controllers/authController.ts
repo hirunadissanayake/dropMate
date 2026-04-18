@@ -16,8 +16,6 @@ export const requestOtp = async (req: Request, res: Response) => {
       confirmPassword,
       roleRequested, 
       termsAccepted,
-      weightCapacity,
-      vehicleType,
       nicNumber 
     } = req.body;
 
@@ -75,8 +73,8 @@ export const requestOtp = async (req: Request, res: Response) => {
           return res.status(400).json({ message: 'Missing required fields for Customer registration (Email, Selfie, NIC Front/Back, NIC Number)' });
         }
       } else if (roleRequested === 'TRAVELER') {
-        if (!email || !selfieUrl || !nicFrontUrl || !nicBackUrl || !weightCapacity || !vehicleType || !nicNumber) {
-          return res.status(400).json({ message: 'Missing required fields for Traveler registration (Email, Selfie, NIC Front/Back, Weight, Vehicle, NIC Number)' });
+        if (!email || !selfieUrl || !nicFrontUrl || !nicBackUrl || !nicNumber) {
+          return res.status(400).json({ message: 'Missing required fields for Traveler registration (Email, Selfie, NIC Front/Back, NIC Number)' });
         }
       } else if (roleRequested !== 'ADMIN' && roleRequested !== 'CUSTOMER' && roleRequested !== 'TRAVELER') {
         return res.status(400).json({ message: 'Invalid role requested' });
@@ -491,7 +489,7 @@ export const switchRole = async (req: any, res: Response) => {
 
 export const requestNewRole = async (req: any, res: Response) => {
   try {
-    const { role, weightCapacity, vehicleType } = req.body;
+    const { role } = req.body;
     const userId = req.user.id;
 
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
@@ -533,7 +531,7 @@ export const requestNewRole = async (req: any, res: Response) => {
 
 export const updateUserProfile = async (req: any, res: Response) => {
   try {
-    const { name, vehicleType, weightCapacity } = req.body;
+    const { name } = req.body;
     const userId = req.user.id;
     const roleActive = req.user.roleActive;
 
