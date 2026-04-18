@@ -154,3 +154,15 @@ export const getParcelById = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ message: 'Error fetching parcel details' });
   }
 };
+
+export const getAllActiveParcels = async (req: Request, res: Response) => {
+  try {
+    const parcels = await prisma.parcel.findMany({
+      where: { status: 'PENDING' },
+      include: { sender: { select: { id: true, name: true, rating: true } } }
+    });
+    res.status(200).json(parcels);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching active parcels' });
+  }
+};

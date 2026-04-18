@@ -139,6 +139,7 @@ model Trip {
 
   capacityKg    Float
   usedCapacity  Float       @default(0)
+  travelTime    String?
 
   status        TripStatus  @default(ACTIVE)
 

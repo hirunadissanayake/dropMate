@@ -1,10 +1,13 @@
 import express from 'express';
-import { createParcel, getMyParcels, cancelParcel, deleteParcel, getParcelById } from '../controllers/parcelController';
+import { createParcel, getMyParcels, cancelParcel, deleteParcel, getParcelById, getAllActiveParcels } from '../controllers/parcelController';
 import { getPricePreview, getRoutes, getFromLocations, getToLocations } from '../controllers/pricingController';
 import { protect, isCustomer } from '../middlewares/authMiddleware';
 import { upload } from '../utils/cloudinary';
 
 const router = express.Router();
+
+// Logic for travelers to see parcels
+router.get('/active', protect, getAllActiveParcels);
 
 // Public routes for logged-in users to check rates before creating a parcel
 router.get('/routes', protect, getRoutes);
