@@ -122,10 +122,11 @@ export const getAllActiveTrips = async (req: Request, res: Response) => {
     const trips = await prisma.trip.findMany({
       where: { 
         status: 'ACTIVE',
-        travelerId: { not: (req as any).user.id } // Don't show your own trips
+        travelerId: { not: (req as any).user.id }
       },
       include: { 
         traveler: { select: { id: true, name: true, rating: true, selfieUrl: true } },
+        parcels: { select: { weight: true } },
         matches: {
           where: { senderId: (req as any).user.id, status: 'PENDING' },
           select: { id: true }
@@ -133,11 +134,17 @@ export const getAllActiveTrips = async (req: Request, res: Response) => {
       }
     });
 
-    const tripsWithStatus = trips.map(t => ({
-      ...t,
-      isRequested: t.matches.length > 0,
-      matches: undefined // Clean up response
-    }));
+    const tripsWithStatus = trips.map(t => {
+      const usedCapacity = t.parcels.reduce((sum, p) => sum + (p.weight || 0), 0);
+      return {
+        ...t,
+        usedCapacity,
+        isFull: usedCapacity >= (t.capacityKg || 0),
+        isRequested: t.matches.length > 0,
+        matches: undefined,
+        parcels: undefined // Clean up
+      };
+    });
 
     res.status(200).json(tripsWithStatus);
   } catch (error) {
