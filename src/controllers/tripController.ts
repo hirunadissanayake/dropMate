@@ -172,16 +172,19 @@ export const getTripById = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'Trip not found' });
     }
 
-    // Check if the current user (Customer) has already requested this traveler/trip
-    const existingMatch = await prisma.match.findFirst({
+    // Get IDs of parcels the current user has already requested for this trip
+    const existingMatches = await prisma.match.findMany({
       where: {
         tripId: id,
         senderId: (req as any).user.id,
         status: { in: ['PENDING', 'ACCEPTED'] }
-      }
+      },
+      select: { parcelId: true }
     });
 
-    res.status(200).json({ ...trip, userMatch: existingMatch });
+    const requestedParcelIds = existingMatches.map(m => m.parcelId);
+
+    res.status(200).json({ ...trip, requestedParcelIds });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error fetching trip details' });

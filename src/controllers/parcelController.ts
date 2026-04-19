@@ -61,13 +61,27 @@ export const createParcel = async (req: AuthRequest, res: Response) => {
 
 export const getMyParcels = async (req: AuthRequest, res: Response) => {
   try {
+    const userId = req.user.id;
     const parcels = await prisma.parcel.findMany({
-      where: { senderId: req.user.id },
-      include: { matchedTrip: true }
+      where: { senderId: userId },
+      include: {
+        matches: {
+          where: { status: 'PENDING' },
+          select: { id: true }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
     });
-    res.status(200).json(parcels);
+
+    const parcelsWithStatus = parcels.map(p => ({
+      ...p,
+      isRequested: p.matches.length > 0,
+      matches: undefined // Clean up
+    }));
+
+    res.status(200).json(parcelsWithStatus);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching parcels' });
+    res.status(500).json({ message: 'Error fetching your parcels' });
   }
 };
 
