@@ -6,11 +6,10 @@ import { protect, isTraveler } from '../middlewares/authMiddleware';
 const router = express.Router();
 
 // Publicly visible to matched customers, but creation is protected
-router.get('/active', getAllActiveTrips);
-
 router.use(protect);
 
-// Static Routes (Specific names)
+// Now protected routes
+router.get('/active', getAllActiveTrips);
 router.get('/my', isTraveler, getMyTrips);
 router.get('/from-locations', isTraveler, getFromLocations);
 router.get('/to-locations', isTraveler, getToLocations);
