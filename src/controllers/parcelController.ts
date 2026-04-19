@@ -120,13 +120,19 @@ export const getParcelById = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
     const parcel = await prisma.parcel.findUnique({
-      where: { id },
-      include: { 
-        sender: { select: { id: true, name: true, phone: true, rating: true } },
-        matchedTrip: { 
-          include: { 
-            traveler: { select: { id: true, name: true, phone: true, rating: true } } 
-          } 
+      where: { id: id },
+      include: {
+        sender: { select: { id: true, name: true, phone: true, rating: true, selfieUrl: true } },
+        matches: {
+          include: {
+            traveler: { select: { id: true, name: true, phone: true, rating: true, selfieUrl: true } },
+            trip: true
+          }
+        },
+        matchedTrip: {
+          include: {
+            traveler: { select: { id: true, name: true, phone: true, rating: true, selfieUrl: true } }
+          }
         }
       }
     });
