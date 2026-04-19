@@ -182,9 +182,22 @@ export const getAllActiveParcels = async (req: Request, res: Response) => {
   try {
     const parcels = await prisma.parcel.findMany({
       where: { status: 'PENDING' },
-      include: { sender: { select: { id: true, name: true, rating: true } } }
+      include: { 
+        sender: { select: { id: true, name: true, rating: true } },
+        matches: {
+          where: { travelerId: (req as any).user.id, status: 'PENDING' },
+          select: { id: true }
+        }
+      }
     });
-    res.status(200).json(parcels);
+
+    const parcelsWithStatus = parcels.map(p => ({
+      ...p,
+      isRequested: p.matches.length > 0,
+      matches: undefined // Clean up the response
+    }));
+
+    res.status(200).json(parcelsWithStatus);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching active parcels' });
   }
