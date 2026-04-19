@@ -139,14 +139,26 @@ export const getParcelById = async (req: AuthRequest, res: Response) => {
     // Sender can see their own parcel
     // Traveler can see if they are matched to it
     // Admin can see everything
+    // ANYONE can see if the parcel is PENDING (active)
     const isSender = parcel.senderId === req.user.id;
     const isMatchedTraveler = parcel.matchedTrip?.travelerId === req.user.id;
-    
-    // Simple admin check (assuming req.user.role is set by protect middleware)
     const isAdmin = req.user.role === 'ADMIN';
+    const isPending = parcel.status === 'PENDING';
 
-    if (!isSender && !isMatchedTraveler && !isAdmin) {
+    if (!isSender && !isMatchedTraveler && !isAdmin && !isPending) {
       return res.status(403).json({ message: 'Unauthorized to view this parcel' });
+    }
+
+    // Strip sensitive information if the user is not the sender, admin, or matched traveler
+    if (!isSender && !isAdmin && !isMatchedTraveler) {
+      const { receiverName, receiverPhone, deliveryAddress, ...publicData } = parcel;
+      
+      // Also strip sender phone from the included sender object
+      if (publicData.sender) {
+        (publicData.sender as any).phone = undefined;
+      }
+
+      return res.status(200).json(publicData);
     }
 
     res.status(200).json(parcel);
