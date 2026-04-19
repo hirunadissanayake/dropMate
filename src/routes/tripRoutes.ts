@@ -1,5 +1,5 @@
 import express from 'express';
-import { createTrip, getMyTrips, getAllActiveTrips, cancelTrip, deleteTrip, getTripById } from '../controllers/tripController';
+import { createTrip, getMyTrips, getAllActiveTrips, cancelTrip, deleteTrip, getTripById, updateTripCapacity } from '../controllers/tripController';
 import { getFromLocations, getToLocations } from '../controllers/pricingController';
 import { protect, isTraveler } from '../middlewares/authMiddleware';
 
@@ -21,6 +21,7 @@ router.get('/:id', getTripById);
 router.use(isTraveler);
 router.post('/create', createTrip);
 router.put('/cancel/:id', cancelTrip);
+router.put('/update-capacity/:id', updateTripCapacity);
 router.delete('/delete/:id', deleteTrip);
 
 export default router;

@@ -135,20 +135,56 @@ export const getAllActiveTrips = async (req: Request, res: Response) => {
     });
 
     const tripsWithStatus = trips.map(t => {
-      const usedCapacity = t.parcels.reduce((sum, p) => sum + (p.weight || 0), 0);
+      const usedCapacity = (t as any).parcels?.reduce((sum: number, p: any) => sum + (p.weight || 0), 0) || 0;
       return {
         ...t,
         usedCapacity,
         isFull: usedCapacity >= (t.capacityKg || 0),
         isRequested: t.matches.length > 0,
         matches: undefined,
-        parcels: undefined // Clean up
+        parcels: undefined
       };
     });
 
-    res.status(200).json(tripsWithStatus);
+    // ✅ Only return trips that are NOT full
+    const availableTrips = tripsWithStatus.filter(t => !t.isFull);
+
+    res.status(200).json(availableTrips);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching active trips' });
+  }
+};
+
+export const updateTripCapacity = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const { capacityKg } = req.body;
+    const userId = (req as any).user.id;
+
+    const trip = await prisma.trip.findUnique({
+      where: { id },
+      include: { parcels: { select: { weight: true } } }
+    });
+
+    if (!trip) return res.status(404).json({ message: 'Trip not found' });
+    if (trip.travelerId !== userId) return res.status(403).json({ message: 'Unauthorized' });
+
+    // ✅ Validation Rule: New capacity cannot be less than already accepted parcels
+    const usedCapacity = (trip as any).parcels?.reduce((sum: number, p: any) => sum + (p.weight || 0), 0) || 0;
+    if (Number(capacityKg) < usedCapacity) {
+      return res.status(400).json({ 
+        message: `You have already accepted ${usedCapacity}kg of parcels. You cannot reduce your limit below that.` 
+      });
+    }
+
+    const updatedTrip = await prisma.trip.update({
+      where: { id },
+      data: { capacityKg: Number(capacityKg) }
+    });
+
+    res.status(200).json(updatedTrip);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating trip capacity' });
   }
 };
 
