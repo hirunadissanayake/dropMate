@@ -126,6 +126,7 @@ export const getParcelById = async (req: AuthRequest, res: Response) => {
         matches: {
           include: {
             traveler: { select: { id: true, name: true, phone: true, rating: true, selfieUrl: true } },
+            sender: { select: { id: true, name: true, rating: true, selfieUrl: true } },
             trip: true
           }
         },

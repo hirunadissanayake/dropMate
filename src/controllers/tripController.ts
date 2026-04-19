@@ -120,12 +120,28 @@ export const getMyTrips = async (req: AuthRequest, res: Response) => {
 export const getAllActiveTrips = async (req: Request, res: Response) => {
   try {
     const trips = await prisma.trip.findMany({
-      where: { status: 'ACTIVE' },
-      include: { traveler: { select: { name: true, phone: true, rating: true } } }
+      where: { 
+        status: 'ACTIVE',
+        travelerId: { not: (req as any).user.id } // Don't show your own trips
+      },
+      include: { 
+        traveler: { select: { id: true, name: true, rating: true, selfieUrl: true } },
+        matches: {
+          where: { senderId: (req as any).user.id, status: 'PENDING' },
+          select: { id: true }
+        }
+      }
     });
-    res.status(200).json(trips);
+
+    const tripsWithStatus = trips.map(t => ({
+      ...t,
+      isRequested: t.matches.length > 0,
+      matches: undefined // Clean up response
+    }));
+
+    res.status(200).json(tripsWithStatus);
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching trips' });
+    res.status(500).json({ message: 'Error fetching active trips' });
   }
 };
 
