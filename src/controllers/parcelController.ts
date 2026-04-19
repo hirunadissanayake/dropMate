@@ -135,6 +135,17 @@ export const getParcelById = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Parcel not found' });
     }
 
+    // Check if the current user has a pending or accepted match request for this parcel
+    const existingMatch = await prisma.match.findFirst({
+      where: {
+        parcelId: id,
+        travelerId: req.user.id,
+        status: { in: ['PENDING', 'ACCEPTED'] }
+      }
+    });
+
+    const parcelWithMatch = { ...parcel, userMatch: existingMatch };
+
     // Authorization check
     // Sender can see their own parcel
     // Traveler can see if they are matched to it
@@ -151,7 +162,7 @@ export const getParcelById = async (req: AuthRequest, res: Response) => {
 
     // Strip sensitive information if the user is not the sender, admin, or matched traveler
     if (!isSender && !isAdmin && !isMatchedTraveler) {
-      const { receiverName, receiverPhone, deliveryAddress, ...publicData } = parcel;
+      const { receiverName, receiverPhone, deliveryAddress, ...publicData } = parcelWithMatch;
       
       // Also strip sender phone from the included sender object
       if (publicData.sender) {
@@ -161,7 +172,7 @@ export const getParcelById = async (req: AuthRequest, res: Response) => {
       return res.status(200).json(publicData);
     }
 
-    res.status(200).json(parcel);
+    res.status(200).json(parcelWithMatch);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching parcel details' });
   }
