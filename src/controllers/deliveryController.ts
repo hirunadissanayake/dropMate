@@ -71,20 +71,18 @@ export const requestMatch = async (req: AuthRequest, res: Response) => {
 export const getPendingMatches = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user.id;
+    const roleActive = req.user.roleActive;
 
-    // A match is "waiting for you" if:
-    // 1. You are the traveler AND the requester was the sender
-    // OR 2. You are the sender AND the requester was the traveler
-    // However, since we don't store "requesterId" explicitly (for simplicity we check status), 
-    // we show all pending matches where the user is involved.
-    
     const matches = await prisma.match.findMany({
       where: {
-        OR: [{ senderId: userId }, { travelerId: userId }],
-        status: 'PENDING'
+        status: 'PENDING',
+        ...(roleActive === 'TRAVELER' 
+          ? { travelerId: userId } 
+          : { senderId: userId }
+        )
       },
       include: {
-        parcel: true,
+        parcel: { include: { sender: { select: { name: true, phone: true } } } },
         trip: { include: { traveler: { select: { name: true, rating: true } } } },
         sender: { select: { name: true, phone: true } }
       }
