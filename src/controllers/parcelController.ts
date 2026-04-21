@@ -228,3 +228,35 @@ export const getAllActiveParcels = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Error fetching active parcels' });
   }
 };
+
+export const payParcel = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const parcel = await prisma.parcel.findUnique({ where: { id } });
+
+    if (!parcel) {
+      return res.status(404).json({ message: 'Parcel not found' });
+    }
+
+    if (parcel.senderId !== req.user.id) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    if (parcel.paymentMethod !== 'ONLINE') {
+      return res.status(400).json({ message: 'Only online payments can be processed this way' });
+    }
+
+    if (parcel.paymentStatus === 'PAID') {
+      return res.status(400).json({ message: 'Parcel is already paid' });
+    }
+
+    await prisma.parcel.update({
+      where: { id },
+      data: { paymentStatus: 'PAID' }
+    });
+
+    res.status(200).json({ message: 'Payment successful' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error processing payment' });
+  }
+};

@@ -1,5 +1,5 @@
 import express from 'express';
-import { createParcel, getMyParcels, cancelParcel, deleteParcel, getParcelById, getAllActiveParcels } from '../controllers/parcelController';
+import { createParcel, getMyParcels, cancelParcel, deleteParcel, getParcelById, getAllActiveParcels, payParcel } from '../controllers/parcelController';
 import { getPricePreview, getRoutes, getFromLocations, getToLocations } from '../controllers/pricingController';
 import { protect, isCustomer } from '../middlewares/authMiddleware';
 import { upload } from '../utils/cloudinary';
@@ -20,6 +20,7 @@ router.post('/create', protect, isCustomer, upload.array('images', 4), createPar
 router.get('/my', protect, isCustomer, getMyParcels);
 router.get('/:id', protect, getParcelById);
 router.put('/:id/cancel', protect, isCustomer, cancelParcel);
+router.post('/:id/pay', protect, isCustomer, payParcel);
 router.delete('/:id', protect, isCustomer, deleteParcel);
 
 export default router;
