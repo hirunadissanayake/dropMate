@@ -51,6 +51,19 @@ enum DeliveryMethod {
   DOOR_DELIVERY
 }
 
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+  FAILED
+}
+
+enum PaymentMethod {
+  ONLINE
+  CASH_ON_PICKUP
+  CASH_ON_DELIVERY
+}
+
 model User {
   id              String      @id @default(cuid())
   name            String
@@ -113,6 +126,9 @@ model Parcel {
   price           Float?        // Total customer pays
   platformFee     Float?        // DropMate's cut
   travelerPayout  Float?        // What traveler earns
+  
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentMethod   PaymentMethod @default(ONLINE)
   
   routeId         String?       // Link to which route was used
   route           Route?        @relation(fields: [routeId], references: [id])

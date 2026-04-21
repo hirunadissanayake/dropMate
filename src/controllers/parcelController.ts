@@ -13,7 +13,8 @@ export const createParcel = async (req: AuthRequest, res: Response) => {
   try {
     const { 
       name, fromLocation, toLocation, weight, description, 
-      receiverName, receiverPhone, deliveryMethod, deliveryAddress, note 
+      receiverName, receiverPhone, deliveryMethod, deliveryAddress, note,
+      paymentMethod
     } = req.body;
 
     // --- HANDLE MULTIPLE IMAGES ---
@@ -43,6 +44,7 @@ export const createParcel = async (req: AuthRequest, res: Response) => {
         deliveryAddress,
         note,
         status: 'PENDING',
+        paymentMethod: paymentMethod || 'CASH_ON_DELIVERY',
         
         // Save pricing details
         price: pricing.price,

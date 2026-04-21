@@ -217,12 +217,27 @@ export const verifyPickup = async (req: AuthRequest, res: Response) => {
       await prisma.otp.delete({ where: { id: otp.id } });
     }
 
+    // Check if online payment is completed if method is ONLINE
+    if (parcel.paymentMethod === 'ONLINE' && parcel.paymentStatus !== 'PAID') {
+      return res.status(400).json({ message: 'Payment must be completed before pickup for online payments' });
+    }
+
+    // If CASH_ON_PICKUP → mark as PAID when pickup is confirmed
+    const isPickupCash = parcel.paymentMethod === 'CASH_ON_PICKUP';
+
     await prisma.parcel.update({
       where: { id: parcelId },
-      data: { status: 'PICKED_UP' }
+      data: { 
+        status: 'PICKED_UP',
+        paymentStatus: isPickupCash ? 'PAID' : parcel.paymentStatus
+      }
     });
 
-    res.status(200).json({ message: 'Parcel picked up successfully' });
+    res.status(200).json({
+      message: isPickupCash
+        ? 'Parcel picked up & cash collected. Payment confirmed!'
+        : 'Parcel picked up successfully.'
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error verifying pickup' });
   }
@@ -238,7 +253,12 @@ export const initiateDelivery = async (req: AuthRequest, res: Response) => {
 
     const code = generateOtp();
     await prisma.otp.create({
-      data: { userId: parcel.senderId, code, type: 'DELIVERY', expiresAt: new Date(Date.now() + 30 * 60 * 1000) }
+      data: { 
+        phone: parcel.receiverPhone, // Use receiver phone instead of senderId
+        code, 
+        type: 'DELIVERY', 
+        expiresAt: new Date(Date.now() + 30 * 60 * 1000) 
+      }
     });
 
     await sendSms(parcel.receiverPhone, `DropMate: Give this DELIVERY code to the traveler ${code} to receive your parcel.`);
@@ -261,18 +281,25 @@ export const verifyDelivery = async (req: AuthRequest, res: Response) => {
       // Master Bypass
     } else {
       const otp = await prisma.otp.findFirst({
-        where: { userId: parcel.senderId, code, type: 'DELIVERY' }
+        where: { phone: parcel.receiverPhone, code, type: 'DELIVERY' } // Search by phone
       });
 
       if (!otp) return res.status(400).json({ message: 'Invalid OTP' });
       await prisma.otp.delete({ where: { id: otp.id } });
     }
 
-    // ATOMIC: Finish parcel, finish match, and maybe free capacity? 
-    // Usually capacity stays "used" until the trip is completed, but let's just finish the parcel.
+    // ATOMIC: Finish parcel and handle payment
+    // CASH_ON_DELIVERY → mark PAID on delivery
+    // CASH_ON_PICKUP   → already PAID at pickup, just mark DELIVERED
+    // ONLINE           → already PAID before pickup, just mark DELIVERED
+    const isDeliveryCash = parcel.paymentMethod === 'CASH_ON_DELIVERY';
+
     await prisma.parcel.update({
       where: { id: parcelId },
-      data: { status: 'DELIVERED' }
+      data: { 
+        status: 'DELIVERED',
+        paymentStatus: isDeliveryCash ? 'PAID' : parcel.paymentStatus
+      }
     });
 
     res.status(200).json({ message: 'Parcel delivered! Transaction complete.' });
