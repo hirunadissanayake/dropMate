@@ -16,7 +16,8 @@ export const requestOtp = async (req: Request, res: Response) => {
       confirmPassword,
       roleRequested, 
       termsAccepted,
-      nicNumber 
+      nicNumber,
+      permanentAddress 
     } = req.body;
 
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
@@ -60,8 +61,8 @@ export const requestOtp = async (req: Request, res: Response) => {
       }
 
       // Validation for new users
-      if (!name || !roleRequested || !termsAccepted || !password || !confirmPassword) {
-        return res.status(400).json({ message: 'Name, Role, Password, and Terms acceptance are required for new users' });
+      if (!name || !roleRequested || !termsAccepted || !password || !confirmPassword || !permanentAddress) {
+        return res.status(400).json({ message: 'Name, Role, Password, Permanent Address and Terms acceptance are required for new users' });
       }
 
       if (password !== confirmPassword) {
@@ -97,6 +98,7 @@ export const requestOtp = async (req: Request, res: Response) => {
         nicFrontUrl,
         nicBackUrl,
         nicNumber,
+        permanentAddress,
         termsAccepted: termsAccepted === 'true' || termsAccepted === true,
       };
 
@@ -345,6 +347,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
               isCustomerRequested: p.isCustomerRequested, isTravelerRequested: p.isTravelerRequested,
               roleActive: p.roleActive as UserRole, selfieUrl: p.selfieUrl, nicFrontUrl: p.nicFrontUrl,
               nicBackUrl: p.nicBackUrl, nicNumber: p.nicNumber,
+              permanentAddress: p.permanentAddress,
               termsAccepted: p.termsAccepted,
             }
           });
@@ -375,6 +378,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
               isCustomerRequested: p.isCustomerRequested, isTravelerRequested: p.isTravelerRequested,
               roleActive: p.roleActive as UserRole, selfieUrl: p.selfieUrl, nicFrontUrl: p.nicFrontUrl,
               nicBackUrl: p.nicBackUrl, nicNumber: p.nicNumber,
+              permanentAddress: p.permanentAddress,
               termsAccepted: p.termsAccepted,
             }
           });
@@ -542,9 +546,10 @@ export const updateUserProfile = async (req: any, res: Response) => {
       return res.status(403).json({ message: 'Admins must use the admin update endpoint' });
     }
 
-    // 2. Both Customers and Travelers can update their name
+    // 2. Both Customers and Travelers can update their name and permanentAddress
     if (roleActive === 'CUSTOMER' || roleActive === 'TRAVELER') {
       if (name) updateData.name = name;
+      if (req.body.permanentAddress) updateData.permanentAddress = req.body.permanentAddress;
     } else {
       return res.status(403).json({ message: 'Invalid active role' });
     }

@@ -61,6 +61,7 @@ model User {
   nicFrontUrl     String?
   nicBackUrl      String?
   nicNumber       String?     @unique
+  permanentAddress String?
     
   // Traveler specific
   termsAccepted   Boolean     @default(false)
