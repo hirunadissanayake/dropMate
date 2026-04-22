@@ -17,7 +17,8 @@ export const requestOtp = async (req: Request, res: Response) => {
       roleRequested, 
       termsAccepted,
       nicNumber,
-      permanentAddress 
+      permanentAddress,
+      city 
     } = req.body;
 
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
@@ -61,8 +62,8 @@ export const requestOtp = async (req: Request, res: Response) => {
       }
 
       // Validation for new users
-      if (!name || !roleRequested || !termsAccepted || !password || !confirmPassword || !permanentAddress) {
-        return res.status(400).json({ message: 'Name, Role, Password, Permanent Address and Terms acceptance are required for new users' });
+      if (!name || !roleRequested || !termsAccepted || !password || !confirmPassword || !permanentAddress || !city) {
+        return res.status(400).json({ message: 'Name, Role, Password, Permanent Address, City and Terms acceptance are required for new users' });
       }
 
       if (password !== confirmPassword) {
@@ -99,6 +100,7 @@ export const requestOtp = async (req: Request, res: Response) => {
         nicBackUrl,
         nicNumber,
         permanentAddress,
+        city,
         termsAccepted: termsAccepted === 'true' || termsAccepted === true,
       };
 
@@ -312,6 +314,7 @@ export const login = async (req: Request, res: Response) => {
         isTravelerApproved: user.isTravelerApproved,
         isCustomerRequested: user.isCustomerRequested,
         isTravelerRequested: user.isTravelerRequested,
+        city: user.city,
       },
     });
   } catch (error: any) {
@@ -348,6 +351,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
               roleActive: p.roleActive as UserRole, selfieUrl: p.selfieUrl, nicFrontUrl: p.nicFrontUrl,
               nicBackUrl: p.nicBackUrl, nicNumber: p.nicNumber,
               permanentAddress: p.permanentAddress,
+              city: p.city,
               termsAccepted: p.termsAccepted,
             }
           });
