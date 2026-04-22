@@ -176,9 +176,9 @@ export const getParcelById = async (req: AuthRequest, res: Response) => {
     // ANYONE can see if the parcel is PENDING (active)
     // ✅ NEW PRIVACY RULES:
     // Sender and Admin always see everything.
-    // Traveler ONLY sees sensitive info if the Parcel is status 'MATCHED' AND they are the assigned traveler.
+    // Traveler ONLY sees sensitive info if the Parcel is status 'MATCHED' or later AND they are the assigned traveler.
     const isSender = parcel.senderId === req.user.id;
-    const isMatchedTraveler = parcel.status === 'MATCHED' && parcel.matchedTrip?.travelerId === req.user.id;
+    const isMatchedTraveler = ['MATCHED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED'].includes(parcel.status) && parcel.matchedTrip?.travelerId === req.user.id;
     const isAdmin = req.user.role === 'ADMIN';
     const isPending = parcel.status === 'PENDING';
 
