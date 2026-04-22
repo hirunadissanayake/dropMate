@@ -168,12 +168,7 @@ export const getParcelById = async (req: AuthRequest, res: Response) => {
     });
 
     const parcelWithMatch = { ...parcel, userMatch: existingMatch };
-
-    // Authorization check
-    // Sender can see their own parcel
-    // Traveler can see if they are matched to it
-    // Admin can see everything
-    // ANYONE can see if the parcel is PENDING (active)
+    
     // ✅ NEW PRIVACY RULES:
     // Sender and Admin always see everything.
     // Traveler ONLY sees sensitive info if the Parcel is status 'MATCHED' or later AND they are the assigned traveler.

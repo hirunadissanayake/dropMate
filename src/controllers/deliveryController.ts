@@ -101,7 +101,7 @@ export const getPendingMatches = async (req: AuthRequest, res: Response) => {
 export const acceptMatch = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const userId = req.user.id;
+    const userId = req.user.id as string;
 
     const match = await prisma.match.findUnique({
       where: { id: id },
@@ -156,7 +156,7 @@ export const acceptMatch = async (req: AuthRequest, res: Response) => {
 export const rejectMatch = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const userId = req.user.id;
+    const userId = req.user.id as string;
 
     const match = await prisma.match.findUnique({ where: { id: id } });
 
@@ -179,7 +179,8 @@ export const rejectMatch = async (req: AuthRequest, res: Response) => {
 export const initiatePickup = async (req: AuthRequest, res: Response) => {
   try {
     const { parcelId } = req.body;
-    const parcel = await prisma.parcel.findUnique({ where: { id: parcelId }, include: { sender: true } });
+    const pId = parcelId as string;
+    const parcel = await prisma.parcel.findUnique({ where: { id: pId }, include: { sender: true } });
 
     if (!parcel) return res.status(404).json({ message: 'Parcel not found' });
     if (parcel.status !== 'MATCHED') return res.status(400).json({ message: 'Parcel is not matched to a trip yet' });
@@ -202,7 +203,8 @@ export const initiatePickup = async (req: AuthRequest, res: Response) => {
 export const verifyPickup = async (req: AuthRequest, res: Response) => {
   try {
     const { parcelId, code } = req.body;
-    const parcel = await prisma.parcel.findUnique({ where: { id: parcelId } });
+    const pId = parcelId as string;
+    const parcel = await prisma.parcel.findUnique({ where: { id: pId } });
 
     if (!parcel) return res.status(404).json({ message: 'Parcel not found' });
 
@@ -247,7 +249,8 @@ export const verifyPickup = async (req: AuthRequest, res: Response) => {
 export const initiateDelivery = async (req: AuthRequest, res: Response) => {
   try {
     const { parcelId } = req.body;
-    const parcel = await prisma.parcel.findUnique({ where: { id: parcelId } });
+    const pId = parcelId as string;
+    const parcel = await prisma.parcel.findUnique({ where: { id: pId } });
 
     if (!parcel) return res.status(404).json({ message: 'Parcel not found' });
 
@@ -273,7 +276,8 @@ export const initiateDelivery = async (req: AuthRequest, res: Response) => {
 export const verifyDelivery = async (req: AuthRequest, res: Response) => {
   try {
     const { parcelId, code } = req.body;
-    const parcel = await prisma.parcel.findUnique({ where: { id: parcelId } });
+    const pId = parcelId as string;
+    const parcel = await prisma.parcel.findUnique({ where: { id: pId } });
 
     if (!parcel) return res.status(404).json({ message: 'Parcel not found' });
 
@@ -294,13 +298,50 @@ export const verifyDelivery = async (req: AuthRequest, res: Response) => {
     // ONLINE           → already PAID before pickup, just mark DELIVERED
     const isDeliveryCash = parcel.paymentMethod === 'CASH_ON_DELIVERY';
 
-    await prisma.parcel.update({
-      where: { id: parcelId },
-      data: { 
-        status: 'DELIVERED',
-        paymentStatus: isDeliveryCash ? 'PAID' : parcel.paymentStatus
-      }
-    });
+    // Fetch the matched trip to find the traveler ID
+    const matchedTrip = parcel.matchedTripId
+      ? await prisma.trip.findUnique({ where: { id: parcel.matchedTripId } })
+      : null;
+
+    const travelerPayout = parcel.travelerPayout || 0;
+
+    // Build atomic operations
+    const operations: any[] = [
+      // 1. Mark parcel as DELIVERED
+      prisma.parcel.update({
+        where: { id: pId },
+        data: {
+          status: 'DELIVERED',
+          paymentStatus: isDeliveryCash ? 'PAID' : parcel.paymentStatus
+        }
+      })
+    ];
+
+    // 2. If there is a traveler and a payout amount, credit their wallet
+    if (matchedTrip && travelerPayout > 0) {
+      operations.push(
+        // Credit traveler wallet balance
+        prisma.user.update({
+          where: { id: matchedTrip.travelerId },
+          data: { walletBalance: { increment: travelerPayout } }
+        }),
+        // Create earnings transaction record for history screen
+        prisma.walletTransaction.create({
+          data: {
+            userId: matchedTrip.travelerId,
+            type: 'DELIVERY_EARNED',
+            amount: travelerPayout,
+            status: 'COMPLETED',
+            description: `Earned from ${parcel.fromLocation} → ${parcel.toLocation} delivery`,
+            parcelId: parcel.id
+          }
+        })
+      );
+    }
+
+    await prisma.$transaction(operations);
+
+    console.log(`✅ Delivery confirmed. Traveler ${matchedTrip?.travelerId} credited LKR ${travelerPayout}`);
 
     res.status(200).json({ message: 'Parcel delivered! Transaction complete.' });
   } catch (error) {

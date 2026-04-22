@@ -90,15 +90,17 @@ model User {
 
   rating          Float       @default(0)
   trustScore      Float       @default(50)
+  walletBalance   Float       @default(0)  // Traveler's pending payout balance in LKR
 
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
 
-  parcels         Parcel[]    @relation("UserParcels")
-  trips           Trip[]      @relation("UserTrips")
-  otps            Otp[]
-  sentMatches     Match[]     @relation("SenderMatches")
-  travelerMatches Match[]     @relation("TravelerMatches")
+  parcels              Parcel[]             @relation("UserParcels")
+  trips                Trip[]               @relation("UserTrips")
+  otps                 Otp[]
+  sentMatches          Match[]              @relation("SenderMatches")
+  travelerMatches      Match[]              @relation("TravelerMatches")
+  walletTransactions   WalletTransaction[]  @relation("UserWalletTransactions")
 }
 
 model Parcel {
@@ -252,4 +254,30 @@ model PlatformConfig {
   value            String                     // e.g., "15"
   description      String?                    // e.g., "Platform fee percentage"
   updatedAt        DateTime @updatedAt
+}
+
+enum WalletTransactionType {
+  DELIVERY_EARNED   // Credited when a parcel is delivered
+  WITHDRAWAL        // Debited when traveler withdraws to bank
+}
+
+enum WalletTransactionStatus {
+  PENDING    // Withdrawal requested, waiting for admin to process
+  COMPLETED  // Funds transferred to bank
+  FAILED     // Transfer failed
+}
+
+model WalletTransaction {
+  id          String                  @id @default(cuid())
+  userId      String
+  user        User                    @relation("UserWalletTransactions", fields: [userId], references: [id])
+
+  type        WalletTransactionType
+  amount      Float                              // LKR amount
+  status      WalletTransactionStatus @default(COMPLETED)
+
+  description String?                            // e.g., "Earned from Colombo → Kandy delivery"
+  parcelId    String?                            // Link to the parcel (for DELIVERY_EARNED type)
+
+  createdAt   DateTime                @default(now())
 }
