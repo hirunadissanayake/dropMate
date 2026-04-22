@@ -415,18 +415,10 @@ export const verifyOtp = async (req: Request, res: Response) => {
       { expiresIn: '7d' }
     );
 
+    const { password: __, ...userWithoutPassword } = user as any;
     res.status(200).json({
       token,
-      user: {
-        id: user.id,
-        name: user.name,
-        roleActive: user.roleActive,
-        isCustomerApproved: user.isCustomerApproved,
-        isTravelerApproved: user.isTravelerApproved,
-        isCustomerRequested: user.isCustomerRequested,
-        isTravelerRequested: user.isTravelerRequested,
-        city: user.city,
-      },
+      user: userWithoutPassword,
     });
   } catch (error: any) {
     console.error('--- VERIFY OTP ERROR ---');
@@ -487,10 +479,11 @@ export const switchRole = async (req: any, res: Response) => {
       { expiresIn: '7d' }
     );
 
+    const { password: _, ...userWithoutPassword } = updatedUser as any;
     res.status(200).json({
       message: `Switched to ${role} mode`,
       token,
-      user: updatedUser
+      user: userWithoutPassword,
     });
   } catch (error: any) {
     res.status(500).json({ message: 'Internal server error', error: error.message });
