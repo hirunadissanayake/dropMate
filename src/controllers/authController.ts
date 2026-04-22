@@ -383,6 +383,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
               roleActive: p.roleActive as UserRole, selfieUrl: p.selfieUrl, nicFrontUrl: p.nicFrontUrl,
               nicBackUrl: p.nicBackUrl, nicNumber: p.nicNumber,
               permanentAddress: p.permanentAddress,
+              city: p.city,
               termsAccepted: p.termsAccepted,
             }
           });
@@ -424,6 +425,7 @@ export const verifyOtp = async (req: Request, res: Response) => {
         isTravelerApproved: user.isTravelerApproved,
         isCustomerRequested: user.isCustomerRequested,
         isTravelerRequested: user.isTravelerRequested,
+        city: user.city,
       },
     });
   } catch (error: any) {
