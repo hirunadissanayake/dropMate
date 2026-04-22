@@ -317,26 +317,48 @@ export const verifyDelivery = async (req: AuthRequest, res: Response) => {
       })
     ];
 
-    // 2. If there is a traveler and a payout amount, credit their wallet
-    if (matchedTrip && travelerPayout > 0) {
-      operations.push(
-        // Credit traveler wallet balance
-        prisma.user.update({
-          where: { id: matchedTrip.travelerId },
-          data: { walletBalance: { increment: travelerPayout } }
-        }),
-        // Create earnings transaction record for history screen
-        prisma.walletTransaction.create({
-          data: {
-            userId: matchedTrip.travelerId,
-            type: 'DELIVERY_EARNED',
-            amount: travelerPayout,
-            status: 'COMPLETED',
-            description: `Earned from ${parcel.fromLocation} → ${parcel.toLocation} delivery`,
-            parcelId: parcel.id
-          }
-        })
-      );
+    const platformFee = parcel.platformFee || 0;
+    const isOnline = parcel.paymentMethod === 'ONLINE';
+
+    // 2. If there is a traveler, adjust their wallet balance
+    if (matchedTrip) {
+      if (isOnline) {
+        // CASE 1: ONLINE — Platform has the money, we owe the traveler their payout
+        operations.push(
+          prisma.user.update({
+            where: { id: matchedTrip.travelerId },
+            data: { walletBalance: { increment: travelerPayout } }
+          }),
+          prisma.walletTransaction.create({
+            data: {
+              userId: matchedTrip.travelerId,
+              type: 'DELIVERY_EARNED',
+              amount: travelerPayout,
+              status: 'COMPLETED',
+              description: `Earned from ${parcel.fromLocation} → ${parcel.toLocation} (Online)`,
+              parcelId: parcel.id
+            }
+          })
+        );
+      } else {
+        // CASE 2: CASH (Pick up or Delivery) — Traveler has the full cash, they owe us the platform fee
+        operations.push(
+          prisma.user.update({
+            where: { id: matchedTrip.travelerId },
+            data: { walletBalance: { decrement: platformFee } }
+          }),
+          prisma.walletTransaction.create({
+            data: {
+              userId: matchedTrip.travelerId,
+              type: 'WITHDRAWAL', // Or a new type like 'COMMISSION_DEDUCTED'
+              amount: platformFee,
+              status: 'COMPLETED',
+              description: `Platform fee for ${parcel.fromLocation} → ${parcel.toLocation} (Cash collected)`,
+              parcelId: parcel.id
+            }
+          })
+        );
+      }
     }
 
     await prisma.$transaction(operations);
