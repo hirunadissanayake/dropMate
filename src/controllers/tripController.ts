@@ -112,20 +112,26 @@ export const getMyTrips = async (req: AuthRequest, res: Response) => {
       include: { parcels: true }
     });
 
-    const today = new Date();
-    const startOfToday = new Date(today);
+    // Get current time in Sri Lanka timezone
+    const nowStr = new Date().toLocaleString("en-US", {timeZone: "Asia/Colombo"});
+    const slNow = new Date(nowStr);
+    
+    const startOfToday = new Date(slNow);
     startOfToday.setHours(0, 0, 0, 0);
-    const currentHours = today.getHours();
-    const currentMinutes = today.getMinutes();
+    const currentHours = slNow.getHours();
+    const currentMinutes = slNow.getMinutes();
 
     const tripsWithExpiry = trips.map(t => {
       let isExpired = false;
-      const tripDate = new Date(t.travelDate);
+      const tripDate = new Date(t.travelDate); // Assumes travelDate is correctly stored (or only cares about the date part)
+      // Normalize tripDate to local start of day for comparison
+      const localTripDate = new Date(tripDate.toLocaleString("en-US", {timeZone: "Asia/Colombo"}));
+      localTripDate.setHours(0, 0, 0, 0);
 
       // Check if the trip is in the past
-      if (tripDate < startOfToday) {
+      if (localTripDate < startOfToday) {
         isExpired = true;
-      } else if (tripDate.getTime() === startOfToday.getTime() && t.travelTime) {
+      } else if (localTripDate.getTime() === startOfToday.getTime() && t.travelTime) {
         // If it's today, check the time
         const timeMatch = t.travelTime.match(/(\d+)[.:](\d+)\s*(AM|PM)/i);
         if (timeMatch) {
@@ -142,9 +148,21 @@ export const getMyTrips = async (req: AuthRequest, res: Response) => {
         }
       }
 
+      // Compute isHistory based on user rules
+      const noParcels = !t.parcels || t.parcels.length === 0;
+      const allParcelsDelivered = t.parcels && t.parcels.length > 0 && t.parcels.every((p: any) => p.status === 'DELIVERED');
+      
+      let isHistory = false;
+      if (t.status === 'CANCELLED' || t.status === 'COMPLETED') {
+        isHistory = true;
+      } else if (isExpired && (noParcels || allParcelsDelivered)) {
+        isHistory = true;
+      }
+
       return {
         ...t,
-        isExpired
+        isExpired,
+        isHistory
       };
     });
 
@@ -156,17 +174,16 @@ export const getMyTrips = async (req: AuthRequest, res: Response) => {
 
 export const getAllActiveTrips = async (req: Request, res: Response) => {
   try {
-    const today = new Date();
-    const startOfToday = new Date(today);
-    startOfToday.setHours(0, 0, 0, 0); // Set to start of the day
+    const nowStr = new Date().toLocaleString("en-US", {timeZone: "Asia/Colombo"});
+    const slNow = new Date(nowStr);
+
+    const startOfToday = new Date(slNow);
+    startOfToday.setHours(0, 0, 0, 0);
 
     const trips = await prisma.trip.findMany({
       where: { 
         status: 'ACTIVE',
         travelerId: { not: (req as any).user.id },
-        travelDate: {
-          gte: startOfToday // Fetch trips for today or future dates
-        }
       },
       include: { 
         traveler: { select: { id: true, name: true, rating: true, selfieUrl: true } },
@@ -191,15 +208,21 @@ export const getAllActiveTrips = async (req: Request, res: Response) => {
     });
 
     // ✅ Filter out trips that are full AND trips where the travel time has already passed today
-    const currentHours = today.getHours();
-    const currentMinutes = today.getMinutes();
+    const currentHours = slNow.getHours();
+    const currentMinutes = slNow.getMinutes();
 
     const availableTrips = tripsWithStatus.filter(t => {
       if (t.isFull) return false;
 
-      // Check if the trip is today
       const tripDate = new Date(t.travelDate);
-      if (tripDate.getTime() === startOfToday.getTime() && t.travelTime) {
+      const localTripDate = new Date(tripDate.toLocaleString("en-US", {timeZone: "Asia/Colombo"}));
+      localTripDate.setHours(0, 0, 0, 0);
+
+      // Filter out past dates entirely
+      if (localTripDate < startOfToday) return false;
+
+      // Check if the trip is today
+      if (localTripDate.getTime() === startOfToday.getTime() && t.travelTime) {
         // Try to parse travelTime like "10.00PM" or "10:00 PM"
         const timeMatch = t.travelTime.match(/(\d+)[.:](\d+)\s*(AM|PM)/i);
         if (timeMatch) {
