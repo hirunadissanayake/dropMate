@@ -111,7 +111,44 @@ export const getMyTrips = async (req: AuthRequest, res: Response) => {
       where: { travelerId: req.user.id },
       include: { parcels: true }
     });
-    res.status(200).json(trips);
+
+    const today = new Date();
+    const startOfToday = new Date(today);
+    startOfToday.setHours(0, 0, 0, 0);
+    const currentHours = today.getHours();
+    const currentMinutes = today.getMinutes();
+
+    const tripsWithExpiry = trips.map(t => {
+      let isExpired = false;
+      const tripDate = new Date(t.travelDate);
+
+      // Check if the trip is in the past
+      if (tripDate < startOfToday) {
+        isExpired = true;
+      } else if (tripDate.getTime() === startOfToday.getTime() && t.travelTime) {
+        // If it's today, check the time
+        const timeMatch = t.travelTime.match(/(\d+)[.:](\d+)\s*(AM|PM)/i);
+        if (timeMatch) {
+          let hours = parseInt(timeMatch[1], 10);
+          const minutes = parseInt(timeMatch[2], 10);
+          const period = timeMatch[3].toUpperCase();
+
+          if (period === 'PM' && hours < 12) hours += 12;
+          if (period === 'AM' && hours === 12) hours = 0;
+
+          if (hours < currentHours || (hours === currentHours && minutes <= currentMinutes)) {
+            isExpired = true;
+          }
+        }
+      }
+
+      return {
+        ...t,
+        isExpired
+      };
+    });
+
+    res.status(200).json(tripsWithExpiry);
   } catch (error) {
     res.status(500).json({ message: 'Error fetching trips' });
   }
@@ -119,10 +156,17 @@ export const getMyTrips = async (req: AuthRequest, res: Response) => {
 
 export const getAllActiveTrips = async (req: Request, res: Response) => {
   try {
+    const today = new Date();
+    const startOfToday = new Date(today);
+    startOfToday.setHours(0, 0, 0, 0); // Set to start of the day
+
     const trips = await prisma.trip.findMany({
       where: { 
         status: 'ACTIVE',
-        travelerId: { not: (req as any).user.id }
+        travelerId: { not: (req as any).user.id },
+        travelDate: {
+          gte: startOfToday // Fetch trips for today or future dates
+        }
       },
       include: { 
         traveler: { select: { id: true, name: true, rating: true, selfieUrl: true } },
@@ -146,8 +190,35 @@ export const getAllActiveTrips = async (req: Request, res: Response) => {
       };
     });
 
-    // ✅ Only return trips that are NOT full
-    const availableTrips = tripsWithStatus.filter(t => !t.isFull);
+    // ✅ Filter out trips that are full AND trips where the travel time has already passed today
+    const currentHours = today.getHours();
+    const currentMinutes = today.getMinutes();
+
+    const availableTrips = tripsWithStatus.filter(t => {
+      if (t.isFull) return false;
+
+      // Check if the trip is today
+      const tripDate = new Date(t.travelDate);
+      if (tripDate.getTime() === startOfToday.getTime() && t.travelTime) {
+        // Try to parse travelTime like "10.00PM" or "10:00 PM"
+        const timeMatch = t.travelTime.match(/(\d+)[.:](\d+)\s*(AM|PM)/i);
+        if (timeMatch) {
+          let hours = parseInt(timeMatch[1], 10);
+          const minutes = parseInt(timeMatch[2], 10);
+          const period = timeMatch[3].toUpperCase();
+
+          if (period === 'PM' && hours < 12) hours += 12;
+          if (period === 'AM' && hours === 12) hours = 0;
+
+          // If the travel time has already passed, exclude it
+          if (hours < currentHours || (hours === currentHours && minutes <= currentMinutes)) {
+            return false;
+          }
+        }
+      }
+
+      return true;
+    });
 
     res.status(200).json(availableTrips);
   } catch (error) {
