@@ -64,6 +64,19 @@ enum PaymentMethod {
   CASH_ON_DELIVERY
 }
 
+enum NotificationType {
+  PROFILE_APPROVED
+  PROFILE_REJECTED
+  PARCEL_REQUEST
+  PARCEL_ACCEPTED
+  PARCEL_REJECTED
+  PARCEL_PICKED_UP
+  PARCEL_DELIVERED
+  PAYMENT_RECEIVED
+  WITHDRAWAL_APPROVED
+  GENERAL
+}
+
 model User {
   id              String      @id @default(cuid())
   name            String
@@ -103,6 +116,7 @@ model User {
   travelerMatches      Match[]              @relation("TravelerMatches")
   walletTransactions   WalletTransaction[]  @relation("UserWalletTransactions")
   bankDetails          BankDetail[]
+  notifications        Notification[]       @relation("UserNotifications")
 }
 
 model Parcel {
@@ -297,6 +311,24 @@ model BankDetail {
   
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  user        User             @relation("UserNotifications", fields: [userId], references: [id])
+
+  type        NotificationType
+  title       String
+  body        String
+  isRead      Boolean          @default(false)
+
+  // Optional deep-link metadata
+  metadata    Json?            // e.g., { tripId, parcelId }
+
+  createdAt   DateTime         @default(now())
 
   @@index([userId])
 }

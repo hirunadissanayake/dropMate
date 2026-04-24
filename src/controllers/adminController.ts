@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import { createNotification } from './notificationController';
+
 
 const prisma = new PrismaClient();
 
@@ -211,6 +213,18 @@ export const approveUser = async (req: Request, res: Response) => {
       where: { id: userId },
       data: updateData,
     });
+
+    // Send Notification
+    await createNotification({
+      userId: user.id,
+      type: approve ? 'PROFILE_APPROVED' : 'PROFILE_REJECTED',
+      title: approve ? 'Profile Approved! 🎉' : 'Profile Update',
+      body: approve 
+        ? `Congratulations! Your ${role.toLowerCase()} profile has been verified. You can now use all features.`
+        : `Your ${role.toLowerCase()} profile request was not approved at this time. Please contact support.`,
+      metadata: { role, approve }
+    });
+
 
     res.status(200).json({ 
       message: `User ${role} role ${approve ? 'approved' : 'rejected'}`,
