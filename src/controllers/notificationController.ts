@@ -123,6 +123,7 @@ export const createNotification = async (params: {
     });
 
     if (user?.fcmToken) {
+      console.log(`📡 Sending Push Notification to user ${params.userId}...`);
       await sendPushNotification(
         user.fcmToken,
         params.title,
@@ -133,6 +134,8 @@ export const createNotification = async (params: {
           ...params.metadata 
         }
       );
+    } else {
+      console.log(`⚠️ No FCM token found for user ${params.userId}. Push notification skipped.`);
     }
   } catch (pushError) {
     console.error('Failed to send push notification:', pushError);

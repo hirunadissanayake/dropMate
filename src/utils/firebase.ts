@@ -15,12 +15,23 @@ try {
 
 export const sendPushNotification = async (token: string, title: string, body: string, data?: any) => {
     try {
+        // FCM 'data' field values must be strings
+        const stringifiedData: { [key: string]: string } = {};
+        if (data) {
+            Object.keys(data).forEach(key => {
+                stringifiedData[key] = String(data[key]);
+            });
+        }
+        
+        // Add standard click action for background handling
+        stringifiedData.click_action = 'FLUTTER_NOTIFICATION_CLICK';
+
         const message = {
             notification: {
                 title,
                 body,
             },
-            data: data ? { ...data, click_action: 'FLUTTER_NOTIFICATION_CLICK' } : {}, // data must be strings
+            data: stringifiedData,
             token: token,
         };
 
