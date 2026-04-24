@@ -10,7 +10,8 @@ import {
   switchRole,
   requestNewRole,
   updateUserProfile,
-  changePassword
+  changePassword,
+  updateFcmToken
 } from '../controllers/authController';
 import { upload } from '../utils/cloudinary';
 import { protect } from '../middlewares/authMiddleware';
@@ -41,5 +42,7 @@ router.post('/request-new-role', protect, upload.fields([
 
 router.put('/update-profile', protect, upload.none(), updateUserProfile);
 router.post('/change-password', protect, upload.none(), changePassword);
+router.patch('/fcm-token', protect, upload.none(), updateFcmToken);
+
 
 export default router;

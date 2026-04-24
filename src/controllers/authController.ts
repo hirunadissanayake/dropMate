@@ -608,3 +608,23 @@ export const changePassword = async (req: any, res: Response) => {
     res.status(500).json({ message: 'Error changing password', error: error.message });
   }
 };
+
+export const updateFcmToken = async (req: any, res: Response) => {
+  try {
+    const { fcmToken } = req.body;
+    const userId = req.user.id;
+
+    if (!fcmToken) {
+      return res.status(400).json({ message: 'FCM token is required' });
+    }
+
+    await prisma.user.update({
+      where: { id: userId },
+      data: { fcmToken },
+    });
+
+    res.status(200).json({ message: 'FCM token updated successfully' });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error updating FCM token', error: error.message });
+  }
+};

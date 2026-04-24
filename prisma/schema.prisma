@@ -88,6 +88,7 @@ model User {
   nicBackUrl      String?
   nicNumber       String?     @unique
   permanentAddress String?
+  fcmToken          String?
   city             String?
     
   // Traveler specific

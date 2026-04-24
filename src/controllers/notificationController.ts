@@ -92,6 +92,8 @@ export const deleteNotification = async (req: any, res: Response) => {
   }
 };
 
+import { sendPushNotification } from '../utils/firebase';
+
 /**
  * Internal helper — call this from other controllers to create a notification.
  */
@@ -102,7 +104,8 @@ export const createNotification = async (params: {
   body: string;
   metadata?: object;
 }) => {
-  await prisma.notification.create({
+  // 1. Create in-app notification in DB
+  const notification = await prisma.notification.create({
     data: {
       userId: params.userId,
       type: params.type as any,
@@ -111,4 +114,27 @@ export const createNotification = async (params: {
       metadata: params.metadata ?? {},
     },
   });
+
+  // 2. Try to send Push Notification if user has an FCM token
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: params.userId },
+      select: { fcmToken: true }
+    });
+
+    if (user?.fcmToken) {
+      await sendPushNotification(
+        user.fcmToken,
+        params.title,
+        params.body,
+        { 
+          notificationId: notification.id,
+          type: params.type,
+          ...params.metadata 
+        }
+      );
+    }
+  } catch (pushError) {
+    console.error('Failed to send push notification:', pushError);
+  }
 };
