@@ -61,7 +61,8 @@ export const requestMatch = async (req: AuthRequest, res: Response) => {
 
     // Send notification to the other party
     const targetUserId = isSender ? trip.travelerId : parcel.senderId;
-    const requesterName = req.user.name;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const requesterName = user?.name || 'A user';
     const notificationTitle = 'New Match Request';
     const notificationBody = `${requesterName} wants to match their ${isSender ? 'parcel' : 'trip'} with your ${isSender ? 'trip' : 'parcel'}.`;
 
@@ -161,11 +162,13 @@ export const acceptMatch = async (req: AuthRequest, res: Response) => {
 
     // Notify the other party
     const targetUserId = match.senderId === userId ? match.travelerId : match.senderId;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const requesterName = user?.name || 'A user';
     await createNotification({
       userId: targetUserId,
       type: 'PARCEL_REQUEST',
       title: 'Match Request Accepted!',
-      body: `${req.user.name} has accepted your match request. You can now proceed with the delivery.`,
+      body: `${requesterName} has accepted your match request. You can now proceed with the delivery.`,
       metadata: { matchId: id, parcelId: parcel.id, tripId: trip.id }
     });
 
@@ -198,11 +201,13 @@ export const rejectMatch = async (req: AuthRequest, res: Response) => {
 
     // Notify the other party
     const targetUserId = match.senderId === userId ? match.travelerId : match.senderId;
+    const user = await prisma.user.findUnique({ where: { id: userId } });
+    const requesterName = user?.name || 'A user';
     await createNotification({
       userId: targetUserId,
       type: 'PARCEL_REQUEST',
       title: 'Match Request Declined',
-      body: `${req.user.name} has declined your match request.`,
+      body: `${requesterName} has declined your match request.`,
       metadata: { matchId: id }
     });
 
