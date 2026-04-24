@@ -79,7 +79,8 @@ export const deleteTrip = async (req: AuthRequest, res: Response) => {
     const travelerId = req.user.id;
 
     const trip = await prisma.trip.findUnique({
-      where: { id: id }
+      where: { id: id },
+      include: { parcels: true }
     });
 
     if (!trip) {
@@ -90,8 +91,12 @@ export const deleteTrip = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    if (trip.status !== 'CANCELLED') {
-      return res.status(400).json({ message: 'Only cancelled trips can be deleted' });
+    // A trip can be deleted if it is CANCELLED OR if it is expired with 0 parcels
+    const isExpired = checkTripExpired(trip.travelDate, trip.travelTime);
+    const noParcels = !trip.parcels || trip.parcels.length === 0;
+
+    if (trip.status !== 'CANCELLED' && !(isExpired && noParcels)) {
+      return res.status(400).json({ message: 'Only cancelled trips or expired trips with no parcels can be deleted' });
     }
 
     await prisma.trip.delete({
