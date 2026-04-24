@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { generateOtp, sendSms } from '../utils/otpUtils';
+import { createNotification } from './notificationController';
+
 
 const prisma = new PrismaClient();
 
@@ -57,7 +59,22 @@ export const requestMatch = async (req: AuthRequest, res: Response) => {
       }
     });
 
+    // Send notification to the other party
+    const targetUserId = isSender ? trip.travelerId : parcel.senderId;
+    const requesterName = req.user.name;
+    const notificationTitle = 'New Match Request';
+    const notificationBody = `${requesterName} wants to match their ${isSender ? 'parcel' : 'trip'} with your ${isSender ? 'trip' : 'parcel'}.`;
+
+    await createNotification({
+      userId: targetUserId,
+      type: 'PARCEL_REQUEST',
+      title: notificationTitle,
+      body: notificationBody,
+      metadata: { matchId: match.id, parcelId, tripId }
+    });
+
     res.status(201).json({ message: 'Match request sent', match });
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error creating match request' });
@@ -142,6 +159,16 @@ export const acceptMatch = async (req: AuthRequest, res: Response) => {
       })
     ]);
 
+    // Notify the other party
+    const targetUserId = match.senderId === userId ? match.travelerId : match.senderId;
+    await createNotification({
+      userId: targetUserId,
+      type: 'PARCEL_REQUEST',
+      title: 'Match Request Accepted!',
+      body: `${req.user.name} has accepted your match request. You can now proceed with the delivery.`,
+      metadata: { matchId: id, parcelId: parcel.id, tripId: trip.id }
+    });
+
     res.status(200).json({ message: 'Match accepted and capacity updated' });
   } catch (error) {
     console.error(error);
@@ -167,6 +194,16 @@ export const rejectMatch = async (req: AuthRequest, res: Response) => {
     await prisma.match.update({
       where: { id: id },
       data: { status: 'REJECTED' }
+    });
+
+    // Notify the other party
+    const targetUserId = match.senderId === userId ? match.travelerId : match.senderId;
+    await createNotification({
+      userId: targetUserId,
+      type: 'PARCEL_REQUEST',
+      title: 'Match Request Declined',
+      body: `${req.user.name} has declined your match request.`,
+      metadata: { matchId: id }
     });
 
     res.status(200).json({ message: 'Match request rejected' });
@@ -233,6 +270,15 @@ export const verifyPickup = async (req: AuthRequest, res: Response) => {
         status: 'PICKED_UP',
         paymentStatus: isPickupCash ? 'PAID' : parcel.paymentStatus
       }
+    });
+
+    // Notify the sender
+    await createNotification({
+      userId: parcel.senderId,
+      type: 'PARCEL_REQUEST',
+      title: 'Parcel Picked Up 📦',
+      body: `Your parcel "${parcel.name || 'Package'}" has been picked up by the traveler.`,
+      metadata: { parcelId: pId }
     });
 
     res.status(200).json({
@@ -363,7 +409,30 @@ export const verifyDelivery = async (req: AuthRequest, res: Response) => {
 
     await prisma.$transaction(operations);
 
-    console.log(`✅ Delivery confirmed. Traveler ${matchedTrip?.travelerId} credited LKR ${travelerPayout}`);
+    // Notify the sender
+    await createNotification({
+      userId: parcel.senderId,
+      type: 'PARCEL_REQUEST',
+      title: 'Parcel Delivered! 🎉',
+      body: `Great news! Your parcel "${parcel.name || 'Package'}" has been delivered successfully.`,
+      metadata: { parcelId: pId }
+    });
+
+    // Notify the traveler about earnings
+    if (matchedTrip) {
+      const amount = matchedTrip.travelerId && parcel.paymentMethod === 'ONLINE' ? parcel.travelerPayout : 0;
+      if (amount && amount > 0) {
+        await createNotification({
+          userId: matchedTrip.travelerId,
+          type: 'PAYMENT_RECEIVED',
+          title: 'Payment Credited 💰',
+          body: `You earned LKR ${amount} for delivering the parcel from ${parcel.fromLocation}.`,
+          metadata: { parcelId: pId }
+        });
+      }
+    }
+
+    console.log(`✅ Delivery confirmed. Traveler ${matchedTrip?.travelerId} credited LKR ${parcel.travelerPayout}`);
 
     res.status(200).json({ message: 'Parcel delivered! Transaction complete.' });
   } catch (error) {

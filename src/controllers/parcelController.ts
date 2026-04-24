@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 
 import { calculateParcelPrice } from '../utils/priceCalculator';
+import { createNotification } from './notificationController';
+
 
 const prisma = new PrismaClient();
 
@@ -53,8 +55,19 @@ export const createParcel = async (req: AuthRequest, res: Response) => {
         routeId: pricing.routeId
       }
     });
+    
+    // Notify the customer
+    await createNotification({
+      userId: req.user.id,
+      type: 'PARCEL_REQUEST',
+      title: 'Parcel Created! 📦',
+      body: `Your parcel "${name}" has been listed. You can now match it with travelers.`,
+      metadata: { parcelId: parcel.id }
+    });
+
 
     res.status(201).json(parcel);
+
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error creating parcel' });

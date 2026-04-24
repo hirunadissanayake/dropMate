@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
+import { createNotification } from './notificationController';
+
 
 const prisma = new PrismaClient();
 
@@ -130,6 +132,17 @@ export const payhereWebhook = async (req: Request, res: Response) => {
         where: { id: oId },
         data: { paymentStatus: 'PAID' },
       });
+
+      // Notify the customer
+      await createNotification({
+        userId: parcel.senderId,
+        type: 'PAYMENT_RECEIVED',
+        title: 'Payment Successful! ✅',
+        body: `Your payment of LKR ${payhere_amount} for parcel #${parcel.id.slice(-6).toUpperCase()} has been confirmed.`,
+        metadata: { parcelId: parcel.id }
+      });
+
+
 
       console.log(
         `✅ Payment confirmed for Parcel: ${order_id} | Amount: ${payhere_amount} LKR | Traveler Payout: ${parcel.travelerPayout} LKR`
