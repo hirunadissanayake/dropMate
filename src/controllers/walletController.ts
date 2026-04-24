@@ -89,10 +89,33 @@ export const getTransactionHistory = async (req: AuthRequest, res: Response) => 
 export const requestWithdrawal = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user.id as string;
-    const { amount, bankName, accountNumber, accountHolderName } = req.body;
+    const { amount, bankDetailId, bankName, accountNumber, accountHolderName, branchName } = req.body;
 
-    if (!amount || !bankName || !accountNumber || !accountHolderName) {
-      return res.status(400).json({ message: 'All bank details and amount are required' });
+    let targetBankName = bankName;
+    let targetAccountNumber = accountNumber;
+    let targetAccountHolderName = accountHolderName;
+
+    let targetBranchName = branchName;
+
+    if (bankDetailId) {
+      const savedBank = await prisma.bankDetail.findFirst({
+        where: { id: bankDetailId, userId }
+      });
+      if (!savedBank) {
+        return res.status(404).json({ message: 'Saved bank detail not found' });
+      }
+      targetBankName = savedBank.bankName;
+      targetAccountNumber = savedBank.accountNumber;
+      targetAccountHolderName = savedBank.accountHolderName;
+      targetBranchName = savedBank.branchName;
+    } else {
+      if (!amount || !bankName || !accountNumber || !accountHolderName) {
+        return res.status(400).json({ message: 'Amount and all bank details (or a bankDetailId) are required' });
+      }
+    }
+
+    if (!amount) {
+      return res.status(400).json({ message: 'Withdrawal amount is required' });
     }
 
     const withdrawAmount = parseFloat(amount);
@@ -119,6 +142,8 @@ export const requestWithdrawal = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: 'Minimum withdrawal amount is LKR 500' });
     }
 
+    const description = `Withdrawal to ${targetBankName}${targetBranchName ? ' (' + targetBranchName + ')' : ''} | Acc: ${targetAccountNumber} | Name: ${targetAccountHolderName}`;
+
     // Atomic: Deduct balance + create pending withdrawal record
     await prisma.$transaction([
       // 1. Deduct from wallet immediately (funds are "locked")
@@ -133,7 +158,7 @@ export const requestWithdrawal = async (req: AuthRequest, res: Response) => {
           type: 'WITHDRAWAL',
           amount: withdrawAmount,
           status: 'PENDING',
-          description: `Withdrawal to ${bankName} | Acc: ${accountNumber} | Name: ${accountHolderName}`
+          description
         }
       })
     ]);

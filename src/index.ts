@@ -8,6 +8,7 @@ import tripRoutes from './routes/tripRoutes';
 import deliveryRoutes from './routes/deliveryRoutes';
 import paymentRoutes from './routes/paymentRoutes';
 import walletRoutes from './routes/walletRoutes';
+import bankRoutes from './routes/bankRoutes';
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.use('/api/trips', tripRoutes);
 app.use('/api/delivery', deliveryRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/wallet', walletRoutes);
+app.use('/api/bank-details', bankRoutes);
 
 app.get('/', (req, res) => {
   res.send('DropMate API is running!');

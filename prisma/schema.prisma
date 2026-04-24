@@ -102,6 +102,7 @@ model User {
   sentMatches          Match[]              @relation("SenderMatches")
   travelerMatches      Match[]              @relation("TravelerMatches")
   walletTransactions   WalletTransaction[]  @relation("UserWalletTransactions")
+  bankDetails          BankDetail[]
 }
 
 model Parcel {
@@ -281,4 +282,21 @@ model WalletTransaction {
   parcelId    String?                            // Link to the parcel (for DELIVERY_EARNED type)
 
   createdAt   DateTime                @default(now())
+}
+
+model BankDetail {
+  id                String   @id @default(cuid())
+  userId            String
+  user              User     @relation(fields: [userId], references: [id])
+  
+  bankName          String
+  accountNumber     String
+  accountHolderName String
+  branchName        String?
+  isDefault         Boolean  @default(false)
+  
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([userId])
 }
