@@ -207,7 +207,7 @@ export const getAllActiveTrips = async (req: Request, res: Response) => {
       };
     });
 
-    // ✅ Filter out trips that are full AND trips where the travel time has already passed today
+    // Filter out trips that are full AND trips where the travel time has already passed today
     const currentHours = slNow.getHours();
     const currentMinutes = slNow.getMinutes();
 
@@ -249,6 +249,40 @@ export const getAllActiveTrips = async (req: Request, res: Response) => {
   }
 };
 
+// Helper function to check if a trip is expired based on Sri Lanka time
+const checkTripExpired = (travelDate: Date, travelTime: string | null) => {
+  const nowStr = new Date().toLocaleString("en-US", {timeZone: "Asia/Colombo"});
+  const slNow = new Date(nowStr);
+  const startOfToday = new Date(slNow);
+  startOfToday.setHours(0, 0, 0, 0);
+  const currentHours = slNow.getHours();
+  const currentMinutes = slNow.getMinutes();
+
+  let isExpired = false;
+  const tripDate = new Date(travelDate);
+  const localTripDate = new Date(tripDate.toLocaleString("en-US", {timeZone: "Asia/Colombo"}));
+  localTripDate.setHours(0, 0, 0, 0);
+
+  if (localTripDate < startOfToday) {
+    isExpired = true;
+  } else if (localTripDate.getTime() === startOfToday.getTime() && travelTime) {
+    const timeMatch = travelTime.match(/(\d+)[.:](\d+)\s*(AM|PM)/i);
+    if (timeMatch) {
+      let hours = parseInt(timeMatch[1], 10);
+      const minutes = parseInt(timeMatch[2], 10);
+      const period = timeMatch[3].toUpperCase();
+
+      if (period === 'PM' && hours < 12) hours += 12;
+      if (period === 'AM' && hours === 12) hours = 0;
+
+      if (hours < currentHours || (hours === currentHours && minutes <= currentMinutes)) {
+        isExpired = true;
+      }
+    }
+  }
+  return isExpired;
+};
+
 export const updateTripCapacity = async (req: Request, res: Response) => {
   try {
     const id = req.params.id as string;
@@ -262,6 +296,11 @@ export const updateTripCapacity = async (req: Request, res: Response) => {
 
     if (!trip) return res.status(404).json({ message: 'Trip not found' });
     if (trip.travelerId !== userId) return res.status(403).json({ message: 'Unauthorized' });
+
+    // ✅ Prevent update if expired
+    if (checkTripExpired(trip.travelDate, trip.travelTime)) {
+      return res.status(400).json({ message: 'Cannot update capacity of an expired trip' });
+    }
 
     // ✅ Validation Rule: New capacity cannot be less than already accepted parcels
     const usedCapacity = (trip as any).parcels?.reduce((sum: number, p: any) => sum + (p.weight || 0), 0) || 0;
@@ -320,8 +359,11 @@ export const getTripById = async (req: Request, res: Response) => {
     });
 
     const requestedParcelIds = existingMatches.map(m => m.parcelId);
+    
+    // Calculate isExpired
+    const isExpired = checkTripExpired(trip.travelDate, trip.travelTime);
 
-    res.status(200).json({ ...trip, requestedParcelIds });
+    res.status(200).json({ ...trip, requestedParcelIds, isExpired });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: 'Error fetching trip details' });
