@@ -179,8 +179,8 @@ export const acceptMatch = async (req: AuthRequest, res: Response) => {
     await createNotification({
       userId: targetUserId,
       type: 'PARCEL_ACCEPTED',
-      title: 'Delivery Request Accepted!',
-      body: `${requesterName} has accepted your delivery request. You can now proceed with the delivery.`,
+      title: 'Delivery Request Accepted! 🎉',
+      body: `${requesterName} has accepted your delivery request for "${parcel.name || 'your parcel'}". You can now proceed with the delivery.`,
       metadata: { matchId: id, parcelId: parcel.id, tripId: trip.id }
     });
 
@@ -200,7 +200,10 @@ export const rejectMatch = async (req: AuthRequest, res: Response) => {
     const id = req.params.id as string;
     const userId = req.user.id as string;
 
-    const match = await prisma.match.findUnique({ where: { id: id } });
+    const match = await prisma.match.findUnique({ 
+      where: { id: id },
+      include: { parcel: true }
+    });
 
     if (!match || match.senderId !== userId && match.travelerId !== userId) {
       return res.status(403).json({ message: 'Unauthorized' });
@@ -224,7 +227,7 @@ export const rejectMatch = async (req: AuthRequest, res: Response) => {
       userId: targetUserId,
       type: 'PARCEL_REJECTED',
       title: 'Delivery Request Declined',
-      body: `${requesterName} has declined your delivery request.${reasonText}`,
+      body: `${requesterName} has declined your delivery request for "${match.parcel?.name || 'your parcel'}".${reasonText}`,
       metadata: { matchId: id, reason }
     });
 
