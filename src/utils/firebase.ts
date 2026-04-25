@@ -36,10 +36,13 @@ export const sendPushNotification = async (token: string, title: string, body: s
         };
 
         if (sound) {
-            // Android sound (no extension)
+            // Android sound (no extension) and Channel ID
             message.android = {
+                priority: 'high',
                 notification: {
                     sound: sound.replace('.mp3', ''),
+                    channelId: 'delivery_requests', // MUST match the channel on the app
+                    ticker: 'New Delivery Request',
                 }
             };
             // iOS sound (with extension)
