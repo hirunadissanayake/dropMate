@@ -68,7 +68,7 @@ export const requestMatch = async (req: AuthRequest, res: Response) => {
 
     await createNotification({
       userId: targetUserId,
-      type: 'PARCEL_REQUEST',
+      type: 'DELIVERY_REQUEST',
       title: notificationTitle,
       body: notificationBody,
       metadata: { matchId: match.id, parcelId, tripId }
