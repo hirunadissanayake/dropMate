@@ -124,6 +124,10 @@ export const createNotification = async (params: {
 
     if (user?.fcmToken) {
       console.log(`📡 Sending Push Notification to user ${params.userId}...`);
+      
+      // Use custom sound for high-priority delivery requests
+      const sound = params.type === 'DELIVERY_REQUEST' ? 'request_alert.mp3' : undefined;
+
       await sendPushNotification(
         user.fcmToken,
         params.title,
@@ -132,7 +136,8 @@ export const createNotification = async (params: {
           notificationId: notification.id,
           type: params.type,
           ...params.metadata 
-        }
+        },
+        sound
       );
     } else {
       console.log(`⚠️ No FCM token found for user ${params.userId}. Push notification skipped.`);

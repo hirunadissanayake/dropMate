@@ -13,7 +13,7 @@ try {
     console.error('❌ Error initializing Firebase Admin:', error);
 }
 
-export const sendPushNotification = async (token: string, title: string, body: string, data?: any) => {
+export const sendPushNotification = async (token: string, title: string, body: string, data?: any, sound?: string) => {
     try {
         // FCM 'data' field values must be strings
         const stringifiedData: { [key: string]: string } = {};
@@ -26,7 +26,7 @@ export const sendPushNotification = async (token: string, title: string, body: s
         // Add standard click action for background handling
         stringifiedData.click_action = 'FLUTTER_NOTIFICATION_CLICK';
 
-        const message = {
+        const message: any = {
             notification: {
                 title,
                 body,
@@ -34,6 +34,23 @@ export const sendPushNotification = async (token: string, title: string, body: s
             data: stringifiedData,
             token: token,
         };
+
+        if (sound) {
+            // Android sound (no extension)
+            message.android = {
+                notification: {
+                    sound: sound.replace('.mp3', ''),
+                }
+            };
+            // iOS sound (with extension)
+            message.apns = {
+                payload: {
+                    aps: {
+                        sound: sound.endsWith('.mp3') ? sound : `${sound}.mp3`,
+                    }
+                }
+            };
+        }
 
         const response = await admin.messaging().send(message);
         console.log('Successfully sent message:', response);
