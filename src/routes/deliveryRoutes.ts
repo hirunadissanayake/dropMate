@@ -4,6 +4,7 @@ import {
   getPendingMatches,
   acceptMatch,
   rejectMatch,
+  expireMatch,
   initiatePickup, 
   verifyPickup, 
   initiateDelivery, 
@@ -20,6 +21,7 @@ router.post('/match-request', requestMatch);
 router.get('/pending-matches', getPendingMatches);
 router.patch('/match/:id/accept', acceptMatch);
 router.patch('/match/:id/reject', rejectMatch);
+router.patch('/match/:id/expire', expireMatch);
 
 // 2. LOGISTICS (Restricted to Travelers only)
 router.use(isTraveler);

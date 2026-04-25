@@ -194,6 +194,8 @@ export const rejectMatch = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
+    const { reason } = req.body;
+
     await prisma.match.update({
       where: { id: id },
       data: { status: 'REJECTED' }
@@ -203,17 +205,64 @@ export const rejectMatch = async (req: AuthRequest, res: Response) => {
     const targetUserId = match.senderId === userId ? match.travelerId : match.senderId;
     const user = await prisma.user.findUnique({ where: { id: userId } });
     const requesterName = user?.name || 'A user';
+    
+    const reasonText = reason ? ` Reason: ${reason}` : '';
+
     await createNotification({
       userId: targetUserId,
       type: 'PARCEL_REJECTED',
       title: 'Match Request Declined',
-      body: `${requesterName} has declined your match request.`,
-      metadata: { matchId: id }
+      body: `${requesterName} has declined your match request.${reasonText}`,
+      metadata: { matchId: id, reason }
     });
 
     res.status(200).json({ message: 'Match request rejected' });
   } catch (error) {
     res.status(500).json({ message: 'Error rejecting match' });
+  }
+};
+
+/**
+ * 5. EXPIRE MATCH: Called when the 15-minute timer runs out
+ * PATCH /api/delivery/match/:id/expire
+ */
+export const expireMatch = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const userId = req.user.id as string;
+
+    const match = await prisma.match.findUnique({ where: { id } });
+
+    if (!match) return res.status(404).json({ message: 'Match not found' });
+
+    // Only the traveler can trigger the expiration (it's their timer)
+    if (match.travelerId !== userId) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    if (match.status !== 'PENDING') {
+      return res.status(400).json({ message: 'Match is already processed' });
+    }
+
+    await prisma.match.update({
+      where: { id },
+      data: { status: 'REJECTED' } // We mark it as rejected (expired)
+    });
+
+    // Notify the sender (Customer)
+    const traveler = await prisma.user.findUnique({ where: { id: userId } });
+    await createNotification({
+      userId: match.senderId,
+      type: 'MATCH_EXPIRED',
+      title: 'Match Request Expired',
+      body: `${traveler?.name || 'The traveler'} did not respond to your request in time. You can try matching with someone else.`,
+      metadata: { matchId: id, status: 'EXPIRED' }
+    });
+
+    res.status(200).json({ message: 'Match expired' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error expiring match' });
   }
 };
 
