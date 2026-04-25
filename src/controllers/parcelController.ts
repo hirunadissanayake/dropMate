@@ -171,7 +171,7 @@ export const getParcelById = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Parcel not found' });
     }
 
-    // Check if the current user has a pending or accepted match request for this parcel
+    // Check if the current user has a pending or accepted delivery request for this parcel
     const existingMatch = await prisma.match.findFirst({
       where: {
         parcelId: id,

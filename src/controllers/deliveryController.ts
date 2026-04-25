@@ -32,7 +32,7 @@ export const requestMatch = async (req: AuthRequest, res: Response) => {
       where: { parcelId, tripId, status: { not: 'REJECTED' } }
     });
     if (existingMatch) {
-      return res.status(400).json({ message: 'A match request already exists' });
+      return res.status(400).json({ message: 'A delivery request already exists' });
     }
 
     // Determine who is requesting
@@ -86,11 +86,11 @@ export const requestMatch = async (req: AuthRequest, res: Response) => {
       }
     });
 
-    res.status(201).json({ message: 'Match request sent', match });
+    res.status(201).json({ message: 'Delivery request sent', match });
 
   } catch (error) {
     console.error(error);
-    res.status(500).json({ message: 'Error creating match request' });
+    res.status(500).json({ message: 'Error creating delivery request' });
   }
 };
 
@@ -179,8 +179,8 @@ export const acceptMatch = async (req: AuthRequest, res: Response) => {
     await createNotification({
       userId: targetUserId,
       type: 'PARCEL_ACCEPTED',
-      title: 'Match Request Accepted!',
-      body: `${requesterName} has accepted your match request. You can now proceed with the delivery.`,
+      title: 'Delivery Request Accepted!',
+      body: `${requesterName} has accepted your delivery request. You can now proceed with the delivery.`,
       metadata: { matchId: id, parcelId: parcel.id, tripId: trip.id }
     });
 
@@ -223,12 +223,12 @@ export const rejectMatch = async (req: AuthRequest, res: Response) => {
     await createNotification({
       userId: targetUserId,
       type: 'PARCEL_REJECTED',
-      title: 'Match Request Declined',
-      body: `${requesterName} has declined your match request.${reasonText}`,
+      title: 'Delivery Request Declined',
+      body: `${requesterName} has declined your delivery request.${reasonText}`,
       metadata: { matchId: id, reason }
     });
 
-    res.status(200).json({ message: 'Match request rejected' });
+    res.status(200).json({ message: 'Delivery request rejected' });
   } catch (error) {
     res.status(500).json({ message: 'Error rejecting match' });
   }
@@ -266,7 +266,7 @@ export const expireMatch = async (req: AuthRequest, res: Response) => {
     await createNotification({
       userId: match.senderId,
       type: 'MATCH_EXPIRED',
-      title: 'Match Request Expired',
+      title: 'Delivery Request Expired',
       body: `${traveler?.name || 'The traveler'} did not respond to your request in time. You can try matching with someone else.`,
       metadata: { matchId: id, status: 'EXPIRED' }
     });
