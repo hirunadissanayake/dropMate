@@ -71,7 +71,19 @@ export const requestMatch = async (req: AuthRequest, res: Response) => {
       type: 'DELIVERY_REQUEST',
       title: notificationTitle,
       body: notificationBody,
-      metadata: { matchId: match.id, parcelId, tripId }
+      metadata: { 
+        matchId: match.id, 
+        parcelId, 
+        tripId,
+        parcelTitle: parcel.name || 'New Parcel',
+        parcelWeight: parcel.weight,
+        fromLocation: parcel.fromLocation,
+        toLocation: parcel.toLocation,
+        senderName: requesterName,
+        offerPrice: parcel.price,
+        imageUrls: parcel.imageUrls ? JSON.stringify(parcel.imageUrls) : '[]',
+        createdAt: match.createdAt.toISOString()
+      }
     });
 
     res.status(201).json({ message: 'Match request sent', match });

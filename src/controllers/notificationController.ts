@@ -128,15 +128,18 @@ export const createNotification = async (params: {
       // Use custom sound for high-priority delivery requests
       const sound = params.type === 'DELIVERY_REQUEST' ? 'request_alert.mp3' : undefined;
 
+      // Ensure all metadata values are strings for FCM compatibility
+      const fcmData: any = { 
+        notificationId: notification.id,
+        type: params.type,
+        ...params.metadata 
+      };
+
       await sendPushNotification(
         user.fcmToken,
         params.title,
         params.body,
-        { 
-          notificationId: notification.id,
-          type: params.type,
-          ...params.metadata 
-        },
+        fcmData,
         sound
       );
     } else {
