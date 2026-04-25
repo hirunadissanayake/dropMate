@@ -64,7 +64,9 @@ export const requestMatch = async (req: AuthRequest, res: Response) => {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     const requesterName = user?.name || 'A user';
     const notificationTitle = 'New Delivery Request';
-    const notificationBody = `${requesterName} wants to deliver their ${isSender ? 'parcel' : 'trip'} with your ${isSender ? 'trip' : 'parcel'}.`;
+    const notificationBody = isSender 
+      ? `${requesterName} wants to deliver their parcel "${parcel.name || 'Package'}" on your trip from ${trip.fromLocation} to ${trip.toLocation}.`
+      : `${requesterName} wants to deliver your parcel "${parcel.name || 'Package'}" on their trip from ${trip.fromLocation} to ${trip.toLocation}.`;
 
     await createNotification({
       userId: targetUserId,
@@ -246,7 +248,10 @@ export const expireMatch = async (req: AuthRequest, res: Response) => {
     const id = req.params.id as string;
     const userId = req.user.id as string;
 
-    const match = await prisma.match.findUnique({ where: { id } });
+    const match = await prisma.match.findUnique({ 
+      where: { id },
+      include: { parcel: true }
+    });
 
     if (!match) return res.status(404).json({ message: 'Match not found' });
 
@@ -270,7 +275,7 @@ export const expireMatch = async (req: AuthRequest, res: Response) => {
       userId: match.senderId,
       type: 'MATCH_EXPIRED',
       title: 'Delivery Request Expired',
-      body: `${traveler?.name || 'The traveler'} did not respond to your request in time. You can try matching with someone else.`,
+      body: `${traveler?.name || 'The traveler'} did not respond to your request for "${match.parcel?.name || 'your parcel'}" in time. You can try matching with someone else.`,
       metadata: { matchId: id, status: 'EXPIRED' }
     });
 
