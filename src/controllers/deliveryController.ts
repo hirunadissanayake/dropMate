@@ -63,8 +63,8 @@ export const requestMatch = async (req: AuthRequest, res: Response) => {
     const targetUserId = isSender ? trip.travelerId : parcel.senderId;
     const user = await prisma.user.findUnique({ where: { id: userId } });
     const requesterName = user?.name || 'A user';
-    const notificationTitle = 'New Match Request';
-    const notificationBody = `${requesterName} wants to match their ${isSender ? 'parcel' : 'trip'} with your ${isSender ? 'trip' : 'parcel'}.`;
+    const notificationTitle = 'New Delivery Request';
+    const notificationBody = `${requesterName} wants to deliver their ${isSender ? 'parcel' : 'trip'} with your ${isSender ? 'trip' : 'parcel'}.`;
 
     await createNotification({
       userId: targetUserId,
