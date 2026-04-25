@@ -127,20 +127,39 @@ export const cancelParcel = async (req: AuthRequest, res: Response) => {
 export const deleteParcel = async (req: AuthRequest, res: Response) => {
   try {
     const id = req.params.id as string;
-    const parcel = await prisma.parcel.findUnique({ where: { id } });
+    const parcel = await prisma.parcel.findUnique({
+      where: { id },
+      include: {
+        matches: {
+          where: { status: { in: ['PENDING', 'ACCEPTED'] } },
+          select: { id: true }
+        }
+      }
+    });
 
     if (!parcel || parcel.senderId !== req.user.id) {
       return res.status(403).json({ message: 'Unauthorized' });
     }
 
-    if (parcel.status !== 'CANCELLED') {
-      return res.status(400).json({ message: 'Only cancelled parcels can be deleted' });
+    // Allow deletion if:
+    // 1. Parcel is CANCELLED, OR
+    // 2. Parcel is PENDING with no active/accepted matches 
+    const hasActiveMatch = parcel.matches.length > 0;
+    const isDeletable = parcel.status === 'CANCELLED' || (parcel.status === 'PENDING' && !hasActiveMatch);
+
+    if (!isDeletable) {
+      return res.status(400).json({ 
+        message: 'Cannot delete this parcel. It may have an active delivery request or is already in transit.' 
+      });
     }
 
+    // Delete associated rejected matches first to avoid FK constraint errors
+    await prisma.match.deleteMany({ where: { parcelId: id } });
     await prisma.parcel.delete({ where: { id } });
 
     res.status(200).json({ message: 'Parcel deleted successfully' });
   } catch (error) {
+    console.error(error);
     res.status(500).json({ message: 'Error deleting parcel' });
   }
 };
