@@ -166,7 +166,7 @@ export const acceptMatch = async (req: AuthRequest, res: Response) => {
     const requesterName = user?.name || 'A user';
     await createNotification({
       userId: targetUserId,
-      type: 'PARCEL_REQUEST',
+      type: 'PARCEL_ACCEPTED',
       title: 'Match Request Accepted!',
       body: `${requesterName} has accepted your match request. You can now proceed with the delivery.`,
       metadata: { matchId: id, parcelId: parcel.id, tripId: trip.id }
@@ -205,7 +205,7 @@ export const rejectMatch = async (req: AuthRequest, res: Response) => {
     const requesterName = user?.name || 'A user';
     await createNotification({
       userId: targetUserId,
-      type: 'PARCEL_REQUEST',
+      type: 'PARCEL_REJECTED',
       title: 'Match Request Declined',
       body: `${requesterName} has declined your match request.`,
       metadata: { matchId: id }
@@ -280,7 +280,7 @@ export const verifyPickup = async (req: AuthRequest, res: Response) => {
     // Notify the sender
     await createNotification({
       userId: parcel.senderId,
-      type: 'PARCEL_REQUEST',
+      type: 'PARCEL_PICKED_UP',
       title: 'Parcel Picked Up 📦',
       body: `Your parcel "${parcel.name || 'Package'}" has been picked up by the traveler.`,
       metadata: { parcelId: pId }
@@ -417,7 +417,7 @@ export const verifyDelivery = async (req: AuthRequest, res: Response) => {
     // Notify the sender
     await createNotification({
       userId: parcel.senderId,
-      type: 'PARCEL_REQUEST',
+      type: 'PARCEL_DELIVERED',
       title: 'Parcel Delivered! 🎉',
       body: `Great news! Your parcel "${parcel.name || 'Package'}" has been delivered successfully.`,
       metadata: { parcelId: pId }

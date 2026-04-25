@@ -59,7 +59,7 @@ export const createParcel = async (req: AuthRequest, res: Response) => {
     // Notify the customer
     await createNotification({
       userId: req.user.id,
-      type: 'PARCEL_REQUEST',
+      type: 'PARCEL_CREATED',
       title: 'Parcel Created! 📦',
       body: `Your parcel "${name}" has been listed. You can now match it with travelers.`,
       metadata: { parcelId: parcel.id }
