@@ -13,7 +13,9 @@ import {
   getAdminMe,
   updateAdminProfile,
   getAllParcelsAdmin,
-  getAllTripsAdmin
+  getAllTripsAdmin,
+  getAllTransactionsAdmin,
+  updateTransactionStatus
 } from '../controllers/adminController';
 import { 
   createRoute, 
@@ -48,6 +50,8 @@ router.get('/pending', getPendingUsers);
 router.get('/all', getAllUsers);
 router.get('/parcels', getAllParcelsAdmin);
 router.get('/trips', getAllTripsAdmin);
+router.get('/transactions', getAllTransactionsAdmin);
+router.post('/transactions/status', updateTransactionStatus);
 router.get('/customers', getApprovedCustomers);
 router.get('/travelers', getApprovedTravelers);
 router.post('/approve', approveUser);

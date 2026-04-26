@@ -342,3 +342,82 @@ export const updateAdminProfile = async (req: any, res: Response) => {
     res.status(500).json({ message: 'Error updating admin profile', error: error.message });
   }
 };
+
+export const getAllTransactionsAdmin = async (req: Request, res: Response) => {
+  try {
+    const transactions = await prisma.walletTransaction.findMany({
+      include: {
+        user: { select: { id: true, name: true, phone: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.status(200).json(transactions);
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error fetching transactions', error: error.message });
+  }
+};
+
+export const updateTransactionStatus = async (req: Request, res: Response) => {
+  try {
+    const { transactionId, status } = req.body; // status: 'COMPLETED' | 'FAILED'
+
+    if (status !== 'COMPLETED' && status !== 'FAILED') {
+      return res.status(400).json({ message: 'Invalid status. Must be COMPLETED or FAILED.' });
+    }
+
+    const transaction = await prisma.walletTransaction.findUnique({
+      where: { id: transactionId },
+    });
+
+    if (!transaction) {
+      return res.status(404).json({ message: 'Transaction not found' });
+    }
+
+    if (transaction.status !== 'PENDING') {
+      return res.status(400).json({ message: 'Only PENDING transactions can be updated.' });
+    }
+
+    if (status === 'FAILED') {
+      // If failed, refund the amount back to user's wallet
+      await prisma.$transaction([
+        prisma.walletTransaction.update({
+          where: { id: transactionId },
+          data: { status: 'FAILED' },
+        }),
+        prisma.user.update({
+          where: { id: transaction.userId },
+          data: { walletBalance: { increment: transaction.amount } },
+        }),
+      ]);
+      
+      // Notify User
+      await createNotification({
+        userId: transaction.userId,
+        type: 'PAYMENT_FAILED',
+        title: 'Withdrawal Failed ❌',
+        body: `Your withdrawal of LKR ${transaction.amount.toFixed(2)} could not be processed. The funds have been returned to your wallet.`,
+        metadata: { transactionId, amount: transaction.amount }
+      });
+
+    } else {
+      // COMPLETED
+      await prisma.walletTransaction.update({
+        where: { id: transactionId },
+        data: { status: 'COMPLETED' },
+      });
+
+      // Notify User
+      await createNotification({
+        userId: transaction.userId,
+        type: 'PAYMENT_SUCCESS',
+        title: 'Withdrawal Successful! ✅',
+        body: `Your withdrawal of LKR ${transaction.amount.toFixed(2)} has been processed successfully.`,
+        metadata: { transactionId, amount: transaction.amount }
+      });
+    }
+
+    res.status(200).json({ message: `Transaction marked as ${status}` });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error updating transaction status', error: error.message });
+  }
+};
