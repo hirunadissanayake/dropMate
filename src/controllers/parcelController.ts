@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 
 import { calculateParcelPrice } from '../utils/priceCalculator';
 import { createNotification } from './notificationController';
+import { notifyAdmins } from '../utils/notificationHelpers';
 
 
 const prisma = new PrismaClient();
@@ -63,6 +64,14 @@ export const createParcel = async (req: AuthRequest, res: Response) => {
       title: 'Parcel Created! 📦',
       body: `Your parcel "${name}" has been listed. You can now match it with travelers.`,
       metadata: { parcelId: parcel.id }
+    });
+
+    // Notify Admins
+    await notifyAdmins({
+      type: 'PARCEL_CREATED',
+      title: 'New Parcel Listed 📦',
+      body: `A new parcel "${name}" has been listed from ${fromLocation} to ${toLocation}.`,
+      metadata: { parcelId: parcel.id, senderId: req.user.id }
     });
 
 

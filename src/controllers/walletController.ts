@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { notifyAdmins } from '../utils/notificationHelpers';
 
 const prisma = new PrismaClient();
 
@@ -162,6 +163,14 @@ export const requestWithdrawal = async (req: AuthRequest, res: Response) => {
         }
       })
     ]);
+
+    // ✅ Notify Admin about new withdrawal request
+    await notifyAdmins({
+      type: 'GENERAL',
+      title: 'Withdrawal Request 💸',
+      body: `A traveler has requested a withdrawal of LKR ${withdrawAmount.toFixed(2)}.`,
+      metadata: { userId, amount: withdrawAmount, description }
+    });
 
     return res.status(200).json({
       message: `Withdrawal of LKR ${withdrawAmount.toFixed(2)} requested. It will be processed within 1-2 business days.`

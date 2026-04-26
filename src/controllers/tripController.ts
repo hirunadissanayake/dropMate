@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { notifyAdmins } from '../utils/notificationHelpers';
 
 const prisma = new PrismaClient();
 
@@ -29,6 +30,14 @@ export const createTrip = async (req: AuthRequest, res: Response) => {
         vehicleType: vehicleType || null,
         status: 'ACTIVE'
       }
+    });
+
+    // ✅ Notify Admin about new trip
+    await notifyAdmins({
+      type: 'GENERAL',
+      title: 'New Trip Created ✈️',
+      body: `A traveler has created a new trip from ${fromLocation} to ${toLocation} for ${new Date(travelDate).toLocaleDateString()}.`,
+      metadata: { tripId: trip.id, travelerId: req.user.id }
     });
 
     res.status(201).json(trip);

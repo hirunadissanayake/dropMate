@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { PrismaClient, UserRole } from '@prisma/client';
 import { generateOtp, sendSms } from '../utils/otpUtils';
+import { createNotification } from './notificationController';
+import { notifyAdmins } from '../utils/notificationHelpers';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
 
@@ -356,6 +358,14 @@ export const verifyOtp = async (req: Request, res: Response) => {
             }
           });
           await prisma.otp.delete({ where: { id: pendingOtp.id } });
+
+          // ✅ Notify Admin about new registration
+          await notifyAdmins({
+            type: 'GENERAL',
+            title: 'New User Registered',
+            body: `${user.name} (${user.phone}) has just registered. Please review their profile.`,
+            metadata: { userId: user.id }
+          });
         } else {
           return res.status(404).json({ message: 'User not found and no pending registration data' });
         }
@@ -386,6 +396,14 @@ export const verifyOtp = async (req: Request, res: Response) => {
               city: p.city,
               termsAccepted: p.termsAccepted,
             }
+          });
+
+          // ✅ Notify Admin about new registration
+          await notifyAdmins({
+            type: 'GENERAL',
+            title: 'New User Registered',
+            body: `${user.name} (${user.phone}) has just registered. Please review their profile.`,
+            metadata: { userId: user.id }
           });
         }
       } else {

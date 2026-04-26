@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import crypto from 'crypto';
 import { createNotification } from './notificationController';
+import { notifyAdmins } from '../utils/notificationHelpers';
 
 
 const prisma = new PrismaClient();
@@ -140,6 +141,14 @@ export const payhereWebhook = async (req: Request, res: Response) => {
         title: 'Payment Successful! ✅',
         body: `Your payment of LKR ${payhere_amount} for parcel #${parcel.id.slice(-6).toUpperCase()} has been confirmed.`,
         metadata: { parcelId: parcel.id }
+      });
+
+      // ✅ Notify Admins
+      await notifyAdmins({
+        type: 'PAYMENT_RECEIVED',
+        title: 'New Payment Confirmed! 💰',
+        body: `Payment of LKR ${payhere_amount} received for parcel #${parcel.id.slice(-6).toUpperCase()}.`,
+        metadata: { parcelId: parcel.id, amount: payhere_amount }
       });
 
 
