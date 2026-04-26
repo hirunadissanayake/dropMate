@@ -279,8 +279,9 @@ model PlatformConfig {
 }
 
 enum WalletTransactionType {
-  DELIVERY_EARNED   // Credited when a parcel is delivered
-  WITHDRAWAL        // Debited when traveler withdraws to bank
+  DELIVERY_EARNED         // Credited when a parcel is delivered
+  WITHDRAWAL              // Debited when traveler withdraws to bank
+  PLATFORM_FEE_DEDUCTION  // Debited when traveler collects cash and platform takes its share
 }
 
 enum WalletTransactionStatus {

@@ -470,7 +470,7 @@ export const verifyDelivery = async (req: AuthRequest, res: Response) => {
           prisma.walletTransaction.create({
             data: {
               userId: matchedTrip.travelerId,
-              type: 'WITHDRAWAL', // Or a new type like 'COMMISSION_DEDUCTED'
+              type: 'PLATFORM_FEE_DEDUCTION',
               amount: platformFee,
               status: 'COMPLETED',
               description: `Platform fee for ${parcel.fromLocation} → ${parcel.toLocation} (Cash collected)`,
