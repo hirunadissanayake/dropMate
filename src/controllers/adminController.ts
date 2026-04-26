@@ -268,6 +268,11 @@ export const getAllTripsAdmin = async (req: Request, res: Response) => {
     const trips = await prisma.trip.findMany({
       include: {
         traveler: { select: { id: true, name: true, phone: true } },
+        parcels: {
+          include: {
+            sender: { select: { id: true, name: true, phone: true } },
+          }
+        },
         _count: {
           select: { parcels: true }
         }
