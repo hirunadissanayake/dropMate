@@ -35,7 +35,7 @@ export const createTrip = async (req: AuthRequest, res: Response) => {
     // ✅ Notify Admin about new trip
     await notifyAdmins({
       type: 'GENERAL',
-      title: 'New Trip Created ✈️',
+      title: 'New Trip Created',
       body: `A traveler has created a new trip from ${fromLocation} to ${toLocation} for ${new Date(travelDate).toLocaleDateString()}.`,
       metadata: { tripId: trip.id, travelerId: req.user.id }
     });

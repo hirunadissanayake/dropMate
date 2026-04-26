@@ -61,7 +61,7 @@ export const createParcel = async (req: AuthRequest, res: Response) => {
     await createNotification({
       userId: req.user.id,
       type: 'PARCEL_CREATED',
-      title: 'Parcel Created! 📦',
+      title: 'Parcel Created!',
       body: `Your parcel "${name}" has been listed. You can now match it with travelers.`,
       metadata: { parcelId: parcel.id }
     });
@@ -69,7 +69,7 @@ export const createParcel = async (req: AuthRequest, res: Response) => {
     // Notify Admins
     await notifyAdmins({
       type: 'PARCEL_CREATED',
-      title: 'New Parcel Listed 📦',
+      title: 'New Parcel Listed',
       body: `A new parcel "${name}" has been listed from ${fromLocation} to ${toLocation}.`,
       metadata: { parcelId: parcel.id, senderId: req.user.id }
     });
