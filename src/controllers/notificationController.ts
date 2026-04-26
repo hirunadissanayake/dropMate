@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
+import { io } from '../index';
 
 const prisma = new PrismaClient();
 
@@ -114,6 +115,14 @@ export const createNotification = async (params: {
       metadata: params.metadata ?? {},
     },
   });
+
+  // 1.5 Emit Socket.io event for real-time dashboard updates
+  try {
+    io.to(params.userId).emit('new_notification', notification);
+    console.log(`Emitted real-time notification to user ${params.userId}`);
+  } catch (socketError) {
+    console.error('Failed to emit socket notification:', socketError);
+  }
 
   // 2. Try to send Push Notification if user has an FCM token
   try {
