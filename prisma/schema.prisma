@@ -161,6 +161,8 @@ model Parcel {
   matchedMatchId  String?       @unique
   matchedMatch    Match?        @relation("MatchedParcel", fields: [matchedMatchId], references: [id])
 
+  walletTransactions WalletTransaction[]
+
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
@@ -298,6 +300,7 @@ model WalletTransaction {
 
   description String?                            // e.g., "Earned from Colombo → Kandy delivery"
   parcelId    String?                            // Link to the parcel (for DELIVERY_EARNED type)
+  parcel      Parcel?                 @relation(fields: [parcelId], references: [id])
 
   createdAt   DateTime                @default(now())
 }
