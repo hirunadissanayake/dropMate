@@ -379,12 +379,38 @@ export const getAllTransactionsAdmin = async (req: Request, res: Response) => {
   try {
     const transactions = await prisma.walletTransaction.findMany({
       include: {
-        user: { select: { id: true, name: true, phone: true, walletBalance: true } },
+        user: { 
+          select: { 
+            id: true, 
+            name: true, 
+            phone: true, 
+            walletBalance: true,
+            walletTransactions: {
+              where: { type: 'WITHDRAWAL', status: 'PENDING' },
+              select: { amount: true }
+            }
+          } 
+        },
         parcel: { select: { id: true, price: true, platformFee: true, travelerPayout: true, fromLocation: true, toLocation: true } }
       },
       orderBy: { createdAt: 'desc' },
     });
-    res.status(200).json(transactions);
+
+    // Map to include calculated real balance
+    const mappedTransactions = transactions.map(tx => {
+      const pendingSum = tx.user.walletTransactions.reduce((sum: number, wtx: any) => sum + wtx.amount, 0);
+      const { walletTransactions, ...userData } = tx.user;
+      return {
+        ...tx,
+        user: {
+          ...userData,
+          pendingSum,
+          realBalance: userData.walletBalance + pendingSum
+        }
+      };
+    });
+
+    res.status(200).json(mappedTransactions);
   } catch (error: any) {
     res.status(500).json({ message: 'Error fetching transactions', error: error.message });
   }
