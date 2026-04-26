@@ -15,7 +15,8 @@ import {
   getAllParcelsAdmin,
   getAllTripsAdmin,
   getAllTransactionsAdmin,
-  updateTransactionStatus
+  updateTransactionStatus,
+  getWalletStatsAdmin
 } from '../controllers/adminController';
 import { 
   createRoute, 
@@ -51,6 +52,7 @@ router.get('/all', getAllUsers);
 router.get('/parcels', getAllParcelsAdmin);
 router.get('/trips', getAllTripsAdmin);
 router.get('/transactions', getAllTransactionsAdmin);
+router.get('/wallet-stats', getWalletStatsAdmin);
 router.post('/transactions/status', updateTransactionStatus);
 router.get('/customers', getApprovedCustomers);
 router.get('/travelers', getApprovedTravelers);

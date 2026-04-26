@@ -343,6 +343,38 @@ export const updateAdminProfile = async (req: any, res: Response) => {
   }
 };
 
+export const getWalletStatsAdmin = async (req: Request, res: Response) => {
+  try {
+    // 1. Total Platform Earnings (Sum of platform fees from delivered parcels)
+    const platformEarnings = await prisma.parcel.aggregate({
+      where: { status: 'DELIVERED' },
+      _sum: { platformFee: true }
+    });
+
+    // 2. Total Traveler Payouts (Sum of traveler payouts from delivered parcels)
+    const travelerPayouts = await prisma.parcel.aggregate({
+      where: { status: 'DELIVERED' },
+      _sum: { travelerPayout: true }
+    });
+
+    // 3. Pending Withdrawals
+    const pendingWithdrawals = await prisma.walletTransaction.aggregate({
+      where: { status: 'PENDING', type: 'WITHDRAWAL' },
+      _sum: { amount: true },
+      _count: true
+    });
+
+    res.status(200).json({
+      totalPlatformEarnings: platformEarnings._sum.platformFee || 0,
+      totalTravelerEarnings: travelerPayouts._sum.travelerPayout || 0,
+      pendingWithdrawalAmount: pendingWithdrawals._sum.amount || 0,
+      pendingWithdrawalCount: pendingWithdrawals._count || 0
+    });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error fetching wallet stats', error: error.message });
+  }
+};
+
 export const getAllTransactionsAdmin = async (req: Request, res: Response) => {
   try {
     const transactions = await prisma.walletTransaction.findMany({
