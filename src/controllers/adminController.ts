@@ -452,8 +452,8 @@ export const updateTransactionStatus = async (req: Request, res: Response) => {
       // Notify User
       await createNotification({
         userId: transaction.userId,
-        type: 'PAYMENT_FAILED',
-        title: 'Withdrawal Failed ❌',
+        type: 'WITHDRAWAL_REJECTED',
+        title: 'Withdrawal Failed',
         body: `Your withdrawal of LKR ${transaction.amount.toFixed(2)} could not be processed. The funds have been returned to your wallet.`,
         metadata: { transactionId, amount: transaction.amount }
       });
@@ -468,7 +468,7 @@ export const updateTransactionStatus = async (req: Request, res: Response) => {
       // Notify User
       await createNotification({
         userId: transaction.userId,
-        type: 'PAYMENT_SUCCESS',
+        type: 'WITHDRAWAL_APPROVED',
         title: 'Withdrawal Successful! ✅',
         body: `Your withdrawal of LKR ${transaction.amount.toFixed(2)} has been processed successfully.`,
         metadata: { transactionId, amount: transaction.amount }
