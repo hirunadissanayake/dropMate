@@ -480,3 +480,54 @@ export const updateTransactionStatus = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Error updating transaction status', error: error.message });
   }
 };
+
+export const globalSearch = async (req: Request, res: Response) => {
+  try {
+    const { query } = req.query;
+
+    if (!query || typeof query !== 'string') {
+      return res.status(200).json({ users: [], parcels: [], trips: [] });
+    }
+
+    const [users, parcels, trips] = await Promise.all([
+      prisma.user.findMany({
+        where: {
+          OR: [
+            { name: { contains: query, mode: 'insensitive' } },
+            { phone: { contains: query, mode: 'insensitive' } },
+            { email: { contains: query, mode: 'insensitive' } },
+          ],
+          roleActive: { not: 'ADMIN' }
+        },
+        take: 5,
+        select: { id: true, name: true, phone: true, roleActive: true }
+      }),
+      prisma.parcel.findMany({
+        where: {
+          OR: [
+            { id: { contains: query, mode: 'insensitive' } },
+            { fromLocation: { contains: query, mode: 'insensitive' } },
+            { toLocation: { contains: query, mode: 'insensitive' } },
+          ]
+        },
+        take: 5,
+        select: { id: true, fromLocation: true, toLocation: true, status: true }
+      }),
+      prisma.trip.findMany({
+        where: {
+          OR: [
+            { id: { contains: query, mode: 'insensitive' } },
+            { fromLocation: { contains: query, mode: 'insensitive' } },
+            { toLocation: { contains: query, mode: 'insensitive' } },
+          ]
+        },
+        take: 5,
+        select: { id: true, fromLocation: true, toLocation: true, status: true }
+      })
+    ]);
+
+    res.status(200).json({ users, parcels, trips });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Search error', error: error.message });
+  }
+};
