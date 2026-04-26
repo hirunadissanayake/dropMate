@@ -244,6 +244,25 @@ export const getAllUsers = async (req: Request, res: Response) => {
   }
 };
 
+export const getAllParcelsAdmin = async (req: Request, res: Response) => {
+  try {
+    const parcels = await prisma.parcel.findMany({
+      include: {
+        sender: { select: { id: true, name: true, phone: true } },
+        matchedTrip: {
+          include: {
+            traveler: { select: { id: true, name: true, phone: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    res.status(200).json(parcels);
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error fetching parcels', error: error.message });
+  }
+};
+
 export const getApprovedCustomers = async (req: Request, res: Response) => {
   try {
     const users = await prisma.user.findMany({

@@ -11,7 +11,8 @@ import {
   getApprovedCustomers,
   getApprovedTravelers,
   getAdminMe,
-  updateAdminProfile
+  updateAdminProfile,
+  getAllParcelsAdmin
 } from '../controllers/adminController';
 import { 
   createRoute, 
@@ -44,6 +45,7 @@ router.use(isAdmin);
 
 router.get('/pending', getPendingUsers);
 router.get('/all', getAllUsers);
+router.get('/parcels', getAllParcelsAdmin);
 router.get('/customers', getApprovedCustomers);
 router.get('/travelers', getApprovedTravelers);
 router.post('/approve', approveUser);
