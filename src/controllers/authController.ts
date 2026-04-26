@@ -549,7 +549,7 @@ export const requestNewRole = async (req: any, res: Response) => {
     await notifyAdmins({
       type: 'GENERAL',
       title: `New ${role.charAt(0) + role.slice(1).toLowerCase()} Request`,
-      body: `${updatedUser.name} has submitted documents for ${role.toLowerCase()} verification.`,
+      body: `${updatedUser.name} requested for ${role.toLowerCase()} verification.`,
       metadata: { userId: updatedUser.id, roleRequested: role }
     });
 
