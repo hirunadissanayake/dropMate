@@ -379,7 +379,7 @@ export const getAllTransactionsAdmin = async (req: Request, res: Response) => {
   try {
     const transactions = await prisma.walletTransaction.findMany({
       include: {
-        user: { select: { id: true, name: true, phone: true } },
+        user: { select: { id: true, name: true, phone: true, walletBalance: true } },
         parcel: { select: { id: true, price: true, platformFee: true, travelerPayout: true, fromLocation: true, toLocation: true } }
       },
       orderBy: { createdAt: 'desc' },
