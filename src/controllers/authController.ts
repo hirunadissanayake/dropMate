@@ -360,10 +360,11 @@ export const verifyOtp = async (req: Request, res: Response) => {
           await prisma.otp.delete({ where: { id: pendingOtp.id } });
 
           // ✅ Notify Admin about new registration
+          const roleText = user.isTravelerRequested ? 'Traveler' : 'Customer';
           await notifyAdmins({
             type: 'GENERAL',
-            title: 'New User Registered',
-            body: `${user.name} (${user.phone}) has just registered. Please review their profile.`,
+            title: `New ${roleText} Registered`,
+            body: `${user.name} has registered as a ${roleText.toLowerCase()}. Please review their profile.`,
             metadata: { userId: user.id }
           });
         } else {
@@ -542,6 +543,14 @@ export const requestNewRole = async (req: any, res: Response) => {
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: updateData,
+    });
+
+    // ✅ Notify Admins about the role request
+    await notifyAdmins({
+      type: 'GENERAL',
+      title: `New ${role.charAt(0) + role.slice(1).toLowerCase()} Request`,
+      body: `${updatedUser.name} has submitted documents for ${role.toLowerCase()} verification.`,
+      metadata: { userId: updatedUser.id, roleRequested: role }
     });
 
     res.status(200).json({ message: `${role} role requested successfully`, user: updatedUser });
