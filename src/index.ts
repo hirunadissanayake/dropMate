@@ -30,6 +30,8 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+import { sendPushNotification } from './utils/firebase';
+
 // Prisma Client
 import { PrismaClient } from '@prisma/client';
 const prisma = new PrismaClient();
@@ -63,6 +65,31 @@ io.on('connection', (socket) => {
         ...newMessage,
         timestamp: newMessage.createdAt
       });
+
+      // If it's a broadcast, send Push Notifications to ALL users
+      if (type === 'BROADCAST') {
+        const users = await prisma.user.findMany({
+          where: { fcmToken: { not: null } },
+          select: { fcmToken: true, id: true }
+        });
+
+        console.log(`Broadcasting push to ${users.length} users...`);
+
+        users.forEach(user => {
+          if (user.fcmToken) {
+            sendPushNotification(
+              user.fcmToken,
+              "New Announcement",
+              message,
+              { 
+                type: 'BROADCAST',
+                id: newMessage.id,
+                senderName: newMessage.senderName
+              }
+            ).catch(err => console.error(`Push failed for ${user.id}:`, err.message));
+          }
+        });
+      }
     } catch (error) {
       console.error('Error sending global message:', error);
     }
