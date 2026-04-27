@@ -181,9 +181,27 @@ io.on('connection', (socket) => {
         where: { userId },
         orderBy: { createdAt: 'asc' }
       });
+      
+      // Mark as read when admin fetches history
+      await prisma.supportMessage.updateMany({
+        where: { userId, isAdmin: false, isRead: false },
+        data: { isRead: true }
+      });
+
       socket.emit('support_history', history);
     } catch (error) {
       console.error('Error fetching support history:', error);
+    }
+  });
+
+  socket.on('mark_support_as_read', async (userId: string) => {
+    try {
+      await prisma.supportMessage.updateMany({
+        where: { userId, isAdmin: false, isRead: false },
+        data: { isRead: true }
+      });
+    } catch (error) {
+      console.error('Error marking support as read:', error);
     }
   });
 
