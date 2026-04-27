@@ -350,4 +350,5 @@ model GlobalMessage {
   message     String
   type        String   @default("CHAT") // CHAT or BROADCAST
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

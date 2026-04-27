@@ -89,7 +89,7 @@ io.on('connection', (socket) => {
       });
       io.emit('global_message_updated', {
         ...updatedMessage,
-        timestamp: updatedMessage.createdAt
+        timestamp: updatedMessage.updatedAt
       });
     } catch (error) {
       console.error('Error editing global message:', error);
