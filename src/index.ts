@@ -80,6 +80,31 @@ io.on('connection', (socket) => {
     }
   });
 
+  socket.on('edit_global_message', async (data: { id: string, message: string }) => {
+    try {
+      const { id, message } = data;
+      const updatedMessage = await prisma.globalMessage.update({
+        where: { id },
+        data: { message }
+      });
+      io.emit('global_message_updated', {
+        ...updatedMessage,
+        timestamp: updatedMessage.createdAt
+      });
+    } catch (error) {
+      console.error('Error editing global message:', error);
+    }
+  });
+
+  socket.on('delete_global_message', async (id: string) => {
+    try {
+      await prisma.globalMessage.delete({ where: { id } });
+      io.emit('global_message_deleted', id);
+    } catch (error) {
+      console.error('Error deleting global message:', error);
+    }
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected');
   });
