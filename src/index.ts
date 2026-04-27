@@ -132,6 +132,66 @@ io.on('connection', (socket) => {
     }
   });
 
+  // Support Chat Handlers
+  socket.on('send_support_message', async (data: any) => {
+    try {
+      const { userId, message, isAdmin, senderName } = data;
+      
+      const supportMsg = await prisma.supportMessage.create({
+        data: {
+          userId,
+          message,
+          isAdmin: isAdmin || false,
+          senderName
+        }
+      });
+
+      // Emit to user's personal room
+      io.to(userId).emit('support_message', supportMsg);
+      
+      // Emit to all admins
+      io.to('admins').emit('support_message', supportMsg);
+
+      // If from admin to user, send push notification to the user
+      if (isAdmin) {
+        const user = await prisma.user.findUnique({
+          where: { id: userId },
+          select: { fcmToken: true }
+        });
+        if (user?.fcmToken) {
+          sendPushNotification(
+            user.fcmToken,
+            "Support Response",
+            message,
+            { type: 'SUPPORT_CHAT', userId }
+          ).catch(err => console.error(`Support push failed:`, err.message));
+        }
+      } else {
+        // From user to admin, maybe notify admins? 
+        // Admins already receive the socket event if joined 'admins' room
+      }
+    } catch (error) {
+      console.error('Error sending support message:', error);
+    }
+  });
+
+  socket.on('get_support_history', async (userId: string) => {
+    try {
+      const history = await prisma.supportMessage.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'asc' }
+      });
+      socket.emit('support_history', history);
+    } catch (error) {
+      console.error('Error fetching support history:', error);
+    }
+  });
+
+  socket.on('join_admins', () => {
+    socket.join('admins');
+    console.log(`Socket ${socket.id} joined admins room`);
+  });
+
   socket.on('disconnect', () => {
     console.log('Client disconnected');
   });

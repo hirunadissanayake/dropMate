@@ -531,3 +531,43 @@ export const globalSearch = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Search error', error: error.message });
   }
 };
+
+export const getSupportChatUsers = async (req: Request, res: Response) => {
+  try {
+    // Get unique userIds from SupportMessage table
+    const chats = await prisma.supportMessage.findMany({
+      distinct: ['userId'],
+      orderBy: { createdAt: 'desc' },
+      select: {
+        userId: true,
+        message: true,
+        createdAt: true,
+        isAdmin: true,
+      }
+    });
+
+    // Fetch user details for each unique userId
+    const usersWithLastMsg = await Promise.all(chats.map(async (chat) => {
+      const user = await prisma.user.findUnique({
+        where: { id: chat.userId },
+        select: { id: true, name: true, phone: true, selfieUrl: true }
+      });
+      
+      // Count unread messages for this user (where isAdmin is false and isRead is false)
+      const unreadCount = await prisma.supportMessage.count({
+        where: { userId: chat.userId, isAdmin: false, isRead: false }
+      });
+
+      return {
+        ...user,
+        lastMessage: chat.message,
+        lastMessageAt: chat.createdAt,
+        unreadCount
+      };
+    }));
+
+    res.status(200).json(usersWithLastMsg);
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error fetching support chats', error: error.message });
+  }
+};
