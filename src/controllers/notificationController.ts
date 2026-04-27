@@ -158,3 +158,50 @@ export const createNotification = async (params: {
     console.error('Failed to send push notification:', pushError);
   }
 };
+
+/**
+ * POST /api/notifications/broadcast
+ * Sends a notification to ALL users.
+ */
+export const sendBroadcast = async (req: Request, res: Response) => {
+  try {
+    const { title, body } = req.body;
+
+    if (!title || !body) {
+      return res.status(400).json({ message: 'Title and body are required' });
+    }
+
+    // 1. Get all users
+    const users = await prisma.user.findMany({
+      select: { id: true, fcmToken: true }
+    });
+
+    // 2. Create notification records in DB
+    const notificationData = users.map(user => ({
+      userId: user.id,
+      type: 'GENERAL' as any,
+      title,
+      body,
+    }));
+
+    await prisma.notification.createMany({
+      data: notificationData
+    });
+
+    // 3. Emit real-time global event
+    io.emit('broadcast_notification', { title, body });
+
+    // 4. Send Push Notifications (async background)
+    users.forEach(user => {
+      if (user.fcmToken) {
+        sendPushNotification(user.fcmToken, title, body, { type: 'GENERAL' }).catch(err => {
+          console.error(`Failed to send broadcast push to ${user.id}:`, err.message);
+        });
+      }
+    });
+
+    res.status(200).json({ message: 'Broadcast sent successfully', count: users.length });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error sending broadcast', error: error.message });
+  }
+};

@@ -3,7 +3,8 @@ import {
   getNotifications, 
   markAsRead, 
   markAllAsRead, 
-  deleteNotification 
+  deleteNotification,
+  sendBroadcast
 } from '../controllers/notificationController';
 import { protect } from '../middlewares/authMiddleware';
 
@@ -16,5 +17,6 @@ router.get('/', getNotifications);
 router.patch('/read-all', markAllAsRead);
 router.patch('/:id/read', markAsRead);
 router.delete('/:id', deleteNotification);
+router.post('/broadcast', sendBroadcast);
 
 export default router;
