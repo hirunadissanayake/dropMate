@@ -511,7 +511,7 @@ export const switchRole = async (req: any, res: Response) => {
 
 export const requestNewRole = async (req: any, res: Response) => {
   try {
-    const { role } = req.body;
+    const { role, name, nicNumber, permanentAddress, city } = req.body;
     const userId = req.user.id;
 
     const files = req.files as { [fieldname: string]: Express.Multer.File[] };
@@ -534,6 +534,12 @@ export const requestNewRole = async (req: any, res: Response) => {
       if (user.isTravelerRequested) return res.status(400).json({ message: 'Traveler role already requested' });
       updateData.isTravelerRequested = true;
     }
+
+    // Update identity fields if provided
+    if (name) updateData.name = name;
+    if (nicNumber) updateData.nicNumber = nicNumber;
+    if (permanentAddress) updateData.permanentAddress = permanentAddress;
+    if (city) updateData.city = city;
 
     // Update documents if provided
     if (selfieUrl) updateData.selfieUrl = selfieUrl;
