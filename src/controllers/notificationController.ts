@@ -95,9 +95,8 @@ export const deleteNotification = async (req: any, res: Response) => {
 
 import { sendPushNotification } from '../utils/firebase';
 
-/**
- * Internal helper — call this from other controllers to create a notification.
- */
+// Internal helper — call this from other controllers to create a notification.
+ 
 export const createNotification = async (params: {
   userId: string;
   type: string;
