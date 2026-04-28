@@ -10,7 +10,7 @@ interface AuthRequest extends Request {
 
 export const createTrip = async (req: AuthRequest, res: Response) => {
   try {
-    const { fromLocation, toLocation, travelDate, capacityKg, travelTime, note, exactLocation, vehicleType, stops } = req.body;
+    const { fromLocation, toLocation, travelDate, capacityKg, travelTime, note, exactLocation, vehicleType, pickupUrl, dropoffUrl } = req.body;
 
     // Only approved TRAVELERs can create trips
     if (req.user.roleActive !== 'TRAVELER') {
@@ -28,7 +28,8 @@ export const createTrip = async (req: AuthRequest, res: Response) => {
         note: note || null,
         exactLocation: exactLocation || null,
         vehicleType: vehicleType || null,
-        stops: stops || [],
+        pickupUrl: pickupUrl || null,
+        dropoffUrl: dropoffUrl || null,
         status: 'ACTIVE'
       }
     });
