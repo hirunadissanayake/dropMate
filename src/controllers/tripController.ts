@@ -190,26 +190,40 @@ export const getMyTrips = async (req: AuthRequest, res: Response) => {
 
 export const getAllActiveTrips = async (req: Request, res: Response) => {
   try {
+    const { page = '1', limit = '10', fromLocation, toLocation } = req.query;
+    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const take = parseInt(limit as string);
+
     const nowStr = new Date().toLocaleString("en-US", {timeZone: "Asia/Colombo"});
     const slNow = new Date(nowStr);
-
     const startOfToday = new Date(slNow);
     startOfToday.setHours(0, 0, 0, 0);
 
-    const trips = await prisma.trip.findMany({
-      where: { 
-        status: 'ACTIVE',
-        travelerId: { not: (req as any).user.id },
-      },
-      include: { 
-        traveler: { select: { id: true, name: true, rating: true, selfieUrl: true } },
-        parcels: { select: { weight: true } },
-        matches: {
-          where: { senderId: (req as any).user.id, status: 'PENDING' },
-          select: { id: true }
-        }
-      }
-    });
+    const where: any = {
+      status: 'ACTIVE',
+      travelerId: { not: (req as any).user.id },
+    };
+
+    if (fromLocation) where.fromLocation = fromLocation as string;
+    if (toLocation) where.toLocation = toLocation as string;
+
+    const [trips, total] = await Promise.all([
+      prisma.trip.findMany({
+        where,
+        include: { 
+          traveler: { select: { id: true, name: true, rating: true, selfieUrl: true } },
+          parcels: { select: { weight: true } },
+          matches: {
+            where: { senderId: (req as any).user.id, status: 'PENDING' },
+            select: { id: true }
+          }
+        },
+        skip,
+        take,
+        orderBy: { travelDate: 'asc' }
+      }),
+      prisma.trip.count({ where })
+    ]);
 
     const tripsWithStatus = trips.map(t => {
       const usedCapacity = (t as any).parcels?.reduce((sum: number, p: any) => sum + (p.weight || 0), 0) || 0;
@@ -259,7 +273,13 @@ export const getAllActiveTrips = async (req: Request, res: Response) => {
       return true;
     });
 
-    res.status(200).json(availableTrips);
+    res.status(200).json({
+      trips: availableTrips,
+      total,
+      page: parseInt(page as string),
+      limit: take,
+      totalPages: Math.ceil(total / take)
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching active trips' });
   }
