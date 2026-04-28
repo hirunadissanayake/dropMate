@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
 import { createNotification } from './notificationController';
+import { io } from '../index';
 
 
 const prisma = new PrismaClient();
@@ -269,6 +270,9 @@ export const blockUser = async (req: Request, res: Response) => {
         : 'Your account has been unblocked. You can now use all features.',
       type: 'GENERAL',
     });
+
+    // Emit socket event for immediate app reaction
+    io.to(userId).emit('user_status_updated', updatedUser);
 
     res.status(200).json({ 
       message: `User ${block ? 'blocked' : 'unblocked'} successfully`, 
