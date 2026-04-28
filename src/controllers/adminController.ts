@@ -194,7 +194,7 @@ export const getPendingUsers = async (req: Request, res: Response) => {
 
 export const approveUser = async (req: Request, res: Response) => {
   try {
-    const { userId, role, approve } = req.body; // role: 'CUSTOMER' | 'TRAVELER', approve: boolean
+    const { userId, role, approve, reason } = req.body; // role: 'CUSTOMER' | 'TRAVELER', approve: boolean, reason?: string
 
     if (role !== 'CUSTOMER' && role !== 'TRAVELER') {
       return res.status(400).json({ message: 'Invalid role specified for approval' });
@@ -203,10 +203,20 @@ export const approveUser = async (req: Request, res: Response) => {
     const updateData: any = {};
     if (role === 'CUSTOMER') {
       updateData.isCustomerApproved = approve;
-      if (!approve) updateData.isCustomerRequested = false;
+      if (!approve) {
+        updateData.isCustomerRequested = false;
+        updateData.rejectionReason = reason || 'Your profile does not meet our requirements.';
+      } else {
+        updateData.rejectionReason = null;
+      }
     } else {
       updateData.isTravelerApproved = approve;
-      if (!approve) updateData.isTravelerRequested = false;
+      if (!approve) {
+        updateData.isTravelerRequested = false;
+        updateData.rejectionReason = reason || 'Your profile does not meet our requirements.';
+      } else {
+        updateData.rejectionReason = null;
+      }
     }
 
     const user = await prisma.user.update({
@@ -218,11 +228,11 @@ export const approveUser = async (req: Request, res: Response) => {
     await createNotification({
       userId: user.id,
       type: approve ? 'PROFILE_APPROVED' : 'PROFILE_REJECTED',
-      title: approve ? 'Profile Approved! 🎉' : 'Profile Update',
+      title: approve ? 'Profile Approved! 🎉' : 'Profile Rejected ❌',
       body: approve 
         ? `Congratulations! Your ${role.toLowerCase()} profile has been verified. You can now use all features.`
-        : `Your ${role.toLowerCase()} profile request was not approved at this time. Please contact support.`,
-      metadata: { role, approve }
+        : `Your ${role.toLowerCase()} profile request was not approved. Reason: ${reason || 'Incomplete information'}. Please fix and resubmit.`,
+      metadata: { role, approve, reason }
     });
 
 
