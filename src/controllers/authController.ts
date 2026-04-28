@@ -526,7 +526,11 @@ export const requestNewRole = async (req: any, res: Response) => {
     const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    const updateData: any = {};
+    const isResubmission = !!(user as any).rejectionReason;
+    const updateData: any = {
+      rejectionReason: null // Clear reason on resubmission
+    };
+
     if (role === 'CUSTOMER') {
       if (user.isCustomerRequested) return res.status(400).json({ message: 'Customer role already requested' });
       updateData.isCustomerRequested = true;
@@ -552,11 +556,12 @@ export const requestNewRole = async (req: any, res: Response) => {
     });
 
     // ✅ Notify Admins about the role request
+    const roleName = role.charAt(0) + role.slice(1).toLowerCase();
     await notifyAdmins({
       type: 'GENERAL',
-      title: `New ${role.charAt(0) + role.slice(1).toLowerCase()} Request`,
-      body: `${updatedUser.name} requested for ${role.toLowerCase()} verification.`,
-      metadata: { userId: updatedUser.id, roleRequested: role }
+      title: isResubmission ? `${roleName} Verification Resubmitted` : `New ${roleName} Request`,
+      body: `${updatedUser.name} has ${isResubmission ? 'resubmitted' : 'requested'} for ${role.toLowerCase()} verification.`,
+      metadata: { userId: updatedUser.id, roleRequested: role, isResubmission }
     });
 
     res.status(200).json({ message: `${role} role requested successfully`, user: updatedUser });
