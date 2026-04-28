@@ -11,8 +11,8 @@ router.use(protect);
 // Now protected routes
 router.get('/active', getAllActiveTrips);
 router.get('/my', isTraveler, getMyTrips);
-router.get('/from-locations', isTraveler, getFromLocations);
-router.get('/to-locations', isTraveler, getToLocations);
+router.get('/from-locations', getFromLocations);
+router.get('/to-locations', getToLocations);
 
 // Wildcard Route (Must be after specific static routes like /my and /active)
 router.get('/:id', getTripById);
