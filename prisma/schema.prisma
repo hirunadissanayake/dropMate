@@ -112,6 +112,8 @@ model User {
   walletBalance   Float       @default(0)  // Traveler's pending payout balance in LKR
 
   rejectionReason String?
+  isBlocked       Boolean     @default(false)
+  blockReason     String?
 
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt

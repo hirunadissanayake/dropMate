@@ -42,6 +42,14 @@ export const requestOtp = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'An account with this phone number already exists. Please log in.' });
     }
 
+    if (existingUserByPhone && existingUserByPhone.isBlocked) {
+      return res.status(403).json({ 
+        message: 'Your account has been blocked.', 
+        isBlocked: true, 
+        blockReason: existingUserByPhone.blockReason 
+      });
+    }
+
     if (!existingUserByPhone) {
       // Check for existing email if provided
       if (email) {
@@ -288,6 +296,14 @@ export const login = async (req: Request, res: Response) => {
       return res.status(401).json({ message: 'Invalid email or password' });
     }
 
+    if (user.isBlocked) {
+      return res.status(403).json({ 
+        message: 'Your account has been blocked.', 
+        isBlocked: true, 
+        blockReason: user.blockReason 
+      });
+    }
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) {
       return res.status(401).json({ message: 'Invalid email or password' });
@@ -421,6 +437,14 @@ export const verifyOtp = async (req: Request, res: Response) => {
       return res.status(404).json({ message: 'User creation failed or user not found' });
     }
 
+    if (user.isBlocked) {
+      return res.status(403).json({ 
+        message: 'Your account has been blocked.', 
+        isBlocked: true, 
+        blockReason: user.blockReason 
+      });
+    }
+
     // Generate JWT
     const token = jwt.sign(
       { 
@@ -453,6 +477,14 @@ export const getMe = async (req: any, res: Response) => {
 
     if (!user) {
       return res.status(404).json({ message: 'User not found' });
+    }
+
+    if (user.isBlocked) {
+      return res.status(403).json({ 
+        message: 'Your account has been blocked.', 
+        isBlocked: true, 
+        blockReason: user.blockReason 
+      });
     }
 
     res.status(200).json(user);

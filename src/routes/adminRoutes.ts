@@ -18,7 +18,8 @@ import {
   updateTransactionStatus,
   getWalletStatsAdmin,
   globalSearch,
-  getSupportChatUsers
+  getSupportChatUsers,
+  blockUser
 } from '../controllers/adminController';
 import { 
   createRoute, 
@@ -59,6 +60,7 @@ router.post('/transactions/status', updateTransactionStatus);
 router.get('/customers', getApprovedCustomers);
 router.get('/travelers', getApprovedTravelers);
 router.post('/approve', approveUser);
+router.post('/block', blockUser);
 router.get('/search', globalSearch);
 router.get('/support/chats', getSupportChatUsers);
 
