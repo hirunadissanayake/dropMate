@@ -218,16 +218,15 @@ export const getToLocations = async (req: Request, res: Response) => {
   try {
     const { fromLocation } = req.query;
     
-    if (!fromLocation) {
-      return res.status(400).json({ message: 'fromLocation is required' });
+    const where: any = { isActive: true };
+    if (fromLocation) {
+      where.fromLocation = fromLocation as string;
     }
 
     const locations = await prisma.route.findMany({
-      where: { 
-        fromLocation: fromLocation as string,
-        isActive: true 
-      },
+      where,
       select: { toLocation: true },
+      distinct: ['toLocation'],
       orderBy: { toLocation: 'asc' }
     });
     
