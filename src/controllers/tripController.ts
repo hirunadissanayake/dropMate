@@ -369,7 +369,8 @@ export const getTripById = async (req: Request, res: Response) => {
             name: true,
             phone: true,
             rating: true,
-            trustScore: true
+            trustScore: true,
+            selfieUrl: true
           }
         },
         parcels: {
