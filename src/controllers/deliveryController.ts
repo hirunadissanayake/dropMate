@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { PrismaClient } from '@prisma/client';
 import { generateOtp, sendSms } from '../utils/otpUtils';
 import { createNotification } from './notificationController';
+import { io } from '../index';
 
 
 const prisma = new PrismaClient();
@@ -185,6 +186,30 @@ export const acceptMatch = async (req: AuthRequest, res: Response) => {
       body: `${requesterName} has accepted your delivery request for "${parcel.name || 'your parcel'}". You can now proceed with the delivery.`,
       metadata: { matchId: id, parcelId: parcel.id, tripId: trip.id }
     });
+    
+    // Notify admins via socket
+    try {
+      io.to('admins').emit('new_notification', {
+        id: `match-${id}`,
+        title: 'Parcel Matched! 📦',
+        body: `Parcel "${parcel.name || 'Package'}" from ${parcel.fromLocation} to ${parcel.toLocation} has been matched with a trip.`,
+        type: 'PARCEL_MATCHED',
+        metadata: { 
+          matchId: id, 
+          parcelId: parcel.id, 
+          tripId: trip.id,
+          fromLocation: parcel.fromLocation,
+          toLocation: parcel.toLocation,
+          weight: parcel.weight,
+          price: parcel.price
+        },
+        createdAt: new Date().toISOString(),
+        isRead: false
+      });
+      console.log(`Admin notification emitted for match ${id}`);
+    } catch (socketError) {
+      console.error('Failed to emit admin notification:', socketError);
+    }
 
     res.status(200).json({ message: 'Match accepted and capacity updated' });
   } catch (error) {
