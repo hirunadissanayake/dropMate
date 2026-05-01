@@ -653,9 +653,9 @@ export const updateTopUpStatus = async (req: Request, res: Response) => {
     }
 
     if (status === 'APPROVED') {
-      // 1. Update status
-      // 2. Increment user wallet
-      // 3. Unblock if their wallet is valid
+      const WALLET_BLOCK_THRESHOLD = -1000;
+
+      // 1. Credit wallet atomically
       await prisma.$transaction([
         prisma.topUpRequest.update({
           where: { id: topUpId },
@@ -667,12 +667,37 @@ export const updateTopUpStatus = async (req: Request, res: Response) => {
         })
       ]);
 
-      // Emit sockets or something could be done here, or let the mobile app polling handle it.
+      // 2. Fetch the freshly updated user to get the real new balance
+      const updatedUser = await prisma.user.findUnique({
+        where: { id: topUp.userId }
+      });
+
+      // 3. If their new balance is above the threshold, ensure isBlocked = false
+      if (updatedUser && updatedUser.walletBalance >= WALLET_BLOCK_THRESHOLD && updatedUser.isBlocked) {
+        await prisma.user.update({
+          where: { id: topUp.userId },
+          data: { isBlocked: false, blockReason: null }
+        });
+      }
+
+      // 4. ✅ Emit real-time wallet_update socket event — mobile Wallet Guard reacts instantly
+      if (updatedUser) {
+        io.to(topUp.userId).emit('wallet_update', {
+          walletBalance: updatedUser.walletBalance + topUp.amount,
+        });
+        // Also emit user_status_updated so the block screen clears
+        io.to(topUp.userId).emit('user_status_updated', {
+          ...updatedUser,
+          walletBalance: updatedUser.walletBalance,
+          isBlocked: updatedUser.walletBalance >= WALLET_BLOCK_THRESHOLD ? false : updatedUser.isBlocked,
+        });
+      }
+
       await createNotification({
         userId: topUp.userId,
         type: 'GENERAL',
         title: 'Top-Up Approved ✅',
-        body: `Your top-up of LKR ${topUp.amount} has been successfully verified and added to your wallet.`,
+        body: `Your top-up of LKR ${topUp.amount} has been verified and added to your wallet.`,
       });
 
     } else {
