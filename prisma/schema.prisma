@@ -126,6 +126,7 @@ model User {
   walletTransactions   WalletTransaction[]  @relation("UserWalletTransactions")
   bankDetails          BankDetail[]
   notifications        Notification[]       @relation("UserNotifications")
+  topUpRequests        TopUpRequest[]
 }
 
 model Parcel {
@@ -368,5 +369,27 @@ model SupportMessage {
   isRead      Boolean  @default(false)
   createdAt   DateTime @default(now())
   
+  @@index([userId])
+}
+
+enum TopUpStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model TopUpRequest {
+  id          String       @id @default(cuid())
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  
+  amount      Float
+  slipUrl     String
+  status      TopUpStatus  @default(PENDING)
+  adminNote   String?
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
   @@index([userId])
 }

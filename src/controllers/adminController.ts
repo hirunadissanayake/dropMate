@@ -620,3 +620,77 @@ export const getSupportChatUsers = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Error fetching support chats', error: error.message });
   }
 };
+
+export const getTopUpsAdmin = async (req: Request, res: Response) => {
+  try {
+    const topUps = await prisma.topUpRequest.findMany({
+      include: {
+        user: { select: { id: true, name: true, phone: true, walletBalance: true } }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+    res.status(200).json(topUps);
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error fetching top-ups', error: error.message });
+  }
+};
+
+export const updateTopUpStatus = async (req: Request, res: Response) => {
+  try {
+    const { topUpId, status, adminNote } = req.body;
+
+    if (status !== 'APPROVED' && status !== 'REJECTED') {
+      return res.status(400).json({ message: 'Status must be APPROVED or REJECTED' });
+    }
+
+    const topUp = await prisma.topUpRequest.findUnique({ where: { id: topUpId } });
+    if (!topUp) {
+      return res.status(404).json({ message: 'Top up request not found' });
+    }
+
+    if (topUp.status !== 'PENDING') {
+      return res.status(400).json({ message: 'Only PENDING requests can be updated' });
+    }
+
+    if (status === 'APPROVED') {
+      // 1. Update status
+      // 2. Increment user wallet
+      // 3. Unblock if their wallet is valid
+      await prisma.$transaction([
+        prisma.topUpRequest.update({
+          where: { id: topUpId },
+          data: { status: 'APPROVED', adminNote }
+        }),
+        prisma.user.update({
+          where: { id: topUp.userId },
+          data: { walletBalance: { increment: topUp.amount } }
+        })
+      ]);
+
+      // Emit sockets or something could be done here, or let the mobile app polling handle it.
+      await createNotification({
+        userId: topUp.userId,
+        type: 'GENERAL',
+        title: 'Top-Up Approved ✅',
+        body: `Your top-up of LKR ${topUp.amount} has been successfully verified and added to your wallet.`,
+      });
+
+    } else {
+      await prisma.topUpRequest.update({
+        where: { id: topUpId },
+        data: { status: 'REJECTED', adminNote }
+      });
+
+      await createNotification({
+        userId: topUp.userId,
+        type: 'GENERAL',
+        title: 'Top-Up Rejected ❌',
+        body: `Your top-up request was rejected. Reason: ${adminNote || 'Invalid bank slip'}.`,
+      });
+    }
+
+    res.status(200).json({ message: `Top up marked as ${status}` });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Error updating top-up status', error: error.message });
+  }
+};

@@ -19,7 +19,9 @@ import {
   getWalletStatsAdmin,
   globalSearch,
   getSupportChatUsers,
-  blockUser
+  blockUser,
+  getTopUpsAdmin,
+  updateTopUpStatus
 } from '../controllers/adminController';
 import { 
   createRoute, 
@@ -63,6 +65,10 @@ router.post('/approve', approveUser);
 router.post('/block', blockUser);
 router.get('/search', globalSearch);
 router.get('/support/chats', getSupportChatUsers);
+
+// Top-ups
+router.get('/top-ups', getTopUpsAdmin);
+router.post('/top-ups/status', updateTopUpStatus);
 
 // Admin Profile
 router.get('/me', getAdminMe);

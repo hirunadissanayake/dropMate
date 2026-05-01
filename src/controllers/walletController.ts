@@ -180,3 +180,50 @@ export const requestWithdrawal = async (req: AuthRequest, res: Response) => {
     return res.status(500).json({ message: 'Error processing withdrawal request' });
   }
 };
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/wallet/topup
+// Traveler requests a wallet topup by providing an amount and a slip URL.
+// Body: { amount, slipUrl }
+// ─────────────────────────────────────────────────────────────────────────────
+export const requestTopUp = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId = req.user.id as string;
+    const { amount, slipUrl } = req.body;
+
+    if (!amount || !slipUrl) {
+      return res.status(400).json({ message: 'Amount and deposit slip image are required' });
+    }
+
+    const topUpAmount = parseFloat(amount);
+    if (isNaN(topUpAmount) || topUpAmount <= 0) {
+      return res.status(400).json({ message: 'Invalid top-up amount' });
+    }
+
+    // Create a PENDING top-up request
+    const topUpRequest = await prisma.topUpRequest.create({
+      data: {
+        userId,
+        amount: topUpAmount,
+        slipUrl,
+        status: 'PENDING'
+      }
+    });
+
+    // ✅ Notify Admin about new top-up request
+    await notifyAdmins({
+      type: 'GENERAL',
+      title: 'Top-Up Request 💳',
+      body: `A traveler has submitted a deposit slip for LKR ${topUpAmount.toFixed(2)}.`,
+      metadata: { userId, amount: topUpAmount, topUpRequestId: topUpRequest.id }
+    });
+
+    return res.status(201).json({
+      message: 'Top-up request submitted successfully. Our team will verify your slip and credit your wallet shortly.',
+      topUpRequest
+    });
+  } catch (error) {
+    console.error('requestTopUp error:', error);
+    return res.status(500).json({ message: 'Error processing top-up request' });
+  }
+};
