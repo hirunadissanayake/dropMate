@@ -149,6 +149,10 @@ io.on('connection', (socket) => {
       // Emit to user's personal room
       io.to(userId).emit('support_message', supportMsg);
       
+      // Also emit back to the sender specifically to ensure immediate update 
+      // even if they haven't joined the room yet or there's a room issue
+      socket.emit('support_message', supportMsg);
+      
       // Emit to all admins
       io.to('admins').emit('support_message', supportMsg);
 
