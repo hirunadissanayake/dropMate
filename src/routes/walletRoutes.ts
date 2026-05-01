@@ -6,6 +6,7 @@ import {
   requestTopUp,
 } from '../controllers/walletController';
 import { protect, isTraveler } from '../middlewares/authMiddleware';
+import { upload } from '../utils/cloudinary';
 
 const router = express.Router();
 
@@ -13,6 +14,6 @@ const router = express.Router();
 router.get('/summary', protect, isTraveler, getWalletSummary);
 router.get('/transactions', protect, isTraveler, getTransactionHistory);
 router.post('/withdraw', protect, isTraveler, requestWithdrawal);
-router.post('/topup', protect, isTraveler, requestTopUp);
+router.post('/topup', protect, isTraveler, upload.single('slip'), requestTopUp);
 
 export default router;

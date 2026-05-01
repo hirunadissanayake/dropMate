@@ -189,7 +189,8 @@ export const requestWithdrawal = async (req: AuthRequest, res: Response) => {
 export const requestTopUp = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user.id as string;
-    const { amount, slipUrl } = req.body;
+    const { amount } = req.body;
+    const slipUrl = req.file?.path;
 
     if (!amount || !slipUrl) {
       return res.status(400).json({ message: 'Amount and deposit slip image are required' });
