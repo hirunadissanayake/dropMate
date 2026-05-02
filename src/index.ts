@@ -10,6 +10,8 @@ import paymentRoutes from './routes/paymentRoutes';
 import walletRoutes from './routes/walletRoutes';
 import bankRoutes from './routes/bankRoutes';
 import notificationRoutes from './routes/notificationRoutes';
+import bannerRoutes from './routes/bannerRoutes';
+
 
 
 import http from 'http';
@@ -232,6 +234,8 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/wallet', walletRoutes);
 app.use('/api/bank-details', bankRoutes);
 app.use('/api/notifications', notificationRoutes);
+app.use('/api/banners', bannerRoutes);
+
 
 
 app.get('/', (req, res) => {
