@@ -32,7 +32,7 @@ export const getNotifications = async (req: any, res: Response) => {
 export const markAsRead = async (req: any, res: Response) => {
   try {
     const userId = req.user.id;
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     const notification = await prisma.notification.findUnique({ where: { id } });
 
@@ -77,7 +77,7 @@ export const markAllAsRead = async (req: any, res: Response) => {
 export const deleteNotification = async (req: any, res: Response) => {
   try {
     const userId = req.user.id;
-    const { id } = req.params;
+    const id = req.params.id as string;
 
     const notification = await prisma.notification.findUnique({ where: { id } });
 

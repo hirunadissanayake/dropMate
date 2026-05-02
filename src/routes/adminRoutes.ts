@@ -36,6 +36,12 @@ import {
   getConfig,
   deleteConfig
 } from '../controllers/pricingController';
+import { 
+  getDropMateBankDetailsAdmin, 
+  createDropMateBankDetail, 
+  updateDropMateBankDetail, 
+  deleteDropMateBankDetail 
+} from '../controllers/dropmateBankController';
 import { protect, isAdmin } from '../middlewares/authMiddleware';
 import { upload } from '../utils/cloudinary';
 
@@ -92,5 +98,11 @@ router.delete('/weight-slabs/:id', deleteWeightSlab);
 router.post('/config', updateConfig);
 router.get('/config', getConfig);
 router.delete('/config/:key', deleteConfig);
+
+// DropMate Bank Details
+router.get('/dropmate-bank-details', getDropMateBankDetailsAdmin);
+router.post('/dropmate-bank-details', createDropMateBankDetail);
+router.put('/dropmate-bank-details/:id', updateDropMateBankDetail);
+router.delete('/dropmate-bank-details/:id', deleteDropMateBankDetail);
 
 export default router;

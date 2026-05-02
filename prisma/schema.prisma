@@ -405,3 +405,13 @@ model Banner {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+model DropMateBankDetail {
+  id                String   @id @default(cuid())
+  bankName          String
+  accountName       String
+  accountNumber     String
+  branchName        String
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+}

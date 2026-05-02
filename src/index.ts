@@ -11,6 +11,7 @@ import walletRoutes from './routes/walletRoutes';
 import bankRoutes from './routes/bankRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import bannerRoutes from './routes/bannerRoutes';
+import dropmateBankRoutes from './routes/dropmateBankRoutes';
 
 
 
@@ -235,6 +236,7 @@ app.use('/api/wallet', walletRoutes);
 app.use('/api/bank-details', bankRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/banners', bannerRoutes);
+app.use('/api/dropmate-bank-details', dropmateBankRoutes);
 
 
 
