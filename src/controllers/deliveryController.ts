@@ -519,13 +519,20 @@ export const verifyDelivery = async (req: AuthRequest, res: Response) => {
 
     // Notify the traveler about earnings
     if (matchedTrip) {
-      const amount = matchedTrip.travelerId && parcel.paymentMethod === 'ONLINE' ? parcel.travelerPayout : 0;
-      if (amount && amount > 0) {
+      if (isOnline && travelerPayout > 0) {
         await createNotification({
           userId: matchedTrip.travelerId,
           type: 'PAYMENT_RECEIVED',
           title: 'Payment Credited 💰',
-          body: `You earned LKR ${amount} for delivering the parcel from ${parcel.fromLocation}.`,
+          body: `You earned LKR ${travelerPayout} for delivering the parcel from ${parcel.fromLocation}.`,
+          metadata: { parcelId: pId }
+        });
+      } else if (!isOnline && travelerPayout > 0) {
+        await createNotification({
+          userId: matchedTrip.travelerId,
+          type: 'PAYMENT_RECEIVED',
+          title: 'Cash Collected 💵',
+          body: `You earned LKR ${travelerPayout} in cash for delivering the parcel from ${parcel.fromLocation}.`,
           metadata: { parcelId: pId }
         });
       }

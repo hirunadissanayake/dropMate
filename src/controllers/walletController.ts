@@ -29,6 +29,16 @@ export const getWalletSummary = async (req: AuthRequest, res: Response) => {
       _sum: { amount: true }
     });
 
+    // Cash earned all time
+    const cashEarned = await prisma.parcel.aggregate({
+      where: {
+        status: 'DELIVERED',
+        matchedTrip: { travelerId: userId },
+        paymentMethod: { in: ['CASH_ON_PICKUP', 'CASH_ON_DELIVERY'] }
+      },
+      _sum: { travelerPayout: true }
+    });
+
     // Pending withdrawals (requested but not yet processed)
     const pendingWithdrawals = await prisma.walletTransaction.aggregate({
       where: { userId, type: 'WITHDRAWAL', status: 'PENDING' },
@@ -49,11 +59,30 @@ export const getWalletSummary = async (req: AuthRequest, res: Response) => {
       _sum: { amount: true }
     });
 
+    const thisMonthCashEarned = await prisma.parcel.aggregate({
+      where: {
+        status: 'DELIVERED',
+        matchedTrip: { travelerId: userId },
+        paymentMethod: { in: ['CASH_ON_PICKUP', 'CASH_ON_DELIVERY'] },
+        updatedAt: { gte: startOfMonth } // Assuming updatedAt represents delivery date
+      },
+      _sum: { travelerPayout: true }
+    });
+
+    const finalOnlineEarned = totalEarned._sum.amount || 0;
+    const finalCashEarned = cashEarned._sum.travelerPayout || 0;
+    const finalTotalEarned = finalOnlineEarned + finalCashEarned;
+
+    const finalMonthOnline = thisMonthEarned._sum.amount || 0;
+    const finalMonthCash = thisMonthCashEarned._sum.travelerPayout || 0;
+    const finalMonthEarned = finalMonthOnline + finalMonthCash;
+
     return res.status(200).json({
       walletBalance: user.walletBalance,
-      totalEarned: totalEarned._sum.amount || 0,
+      totalEarned: finalTotalEarned,
+      cashEarned: finalCashEarned,
       pendingWithdrawals: pendingWithdrawals._sum.amount || 0,
-      thisMonthEarned: thisMonthEarned._sum.amount || 0
+      thisMonthEarned: finalMonthEarned
     });
   } catch (error) {
     console.error('getWalletSummary error:', error);
