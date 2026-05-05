@@ -162,6 +162,15 @@ export const getTransactionHistory = async (req: AuthRequest, res: Response) => 
 
     const transactions = await prisma.walletTransaction.findMany({
       where,
+      include: {
+        parcel: {
+          select: {
+            price: true,
+            platformFee: true,
+            travelerPayout: true
+          }
+        }
+      },
       orderBy: { createdAt: 'desc' },
       take: limit ? parseInt(limit as string) : 100
     });
