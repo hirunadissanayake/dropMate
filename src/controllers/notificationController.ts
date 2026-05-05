@@ -5,21 +5,35 @@ import { io } from '../index';
 const prisma = new PrismaClient();
 
 /**
- * GET /api/notifications
- * Returns all notifications for the logged-in user, newest first.
+ * GET /api/notifications?page=1&limit=10
+ * Returns paginated notifications for the logged-in user, newest first.
  */
 export const getNotifications = async (req: any, res: Response) => {
   try {
     const userId = req.user.id;
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
 
-    const notifications = await prisma.notification.findMany({
-      where: { userId },
-      orderBy: { createdAt: 'desc' },
+    const [notifications, total, unreadCount] = await Promise.all([
+      prisma.notification.findMany({
+        where: { userId },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.notification.count({ where: { userId } }),
+      prisma.notification.count({ where: { userId, isRead: false } }),
+    ]);
+
+    res.status(200).json({
+      notifications,
+      unreadCount,
+      total,
+      page,
+      limit,
+      hasMore: skip + notifications.length < total,
     });
-
-    const unreadCount = notifications.filter((n) => !n.isRead).length;
-
-    res.status(200).json({ notifications, unreadCount });
   } catch (error: any) {
     res.status(500).json({ message: 'Error fetching notifications', error: error.message });
   }
