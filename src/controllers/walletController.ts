@@ -167,7 +167,8 @@ export const getTransactionHistory = async (req: AuthRequest, res: Response) => 
           select: {
             price: true,
             platformFee: true,
-            travelerPayout: true
+            travelerPayout: true,
+            paymentMethod: true
           }
         }
       },
