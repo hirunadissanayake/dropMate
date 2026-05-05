@@ -10,11 +10,12 @@ interface AuthRequest extends Request {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/wallet/summary
-// Returns the traveler's wallet balance + earnings summary
+// Returns the traveler's wallet balance + earnings summary with optional date filtering
 // ─────────────────────────────────────────────────────────────────────────────
 export const getWalletSummary = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user.id as string;
+    const { startDate, endDate } = req.query;
 
     const user = await prisma.user.findUnique({
       where: { id: userId },
@@ -23,66 +24,107 @@ export const getWalletSummary = async (req: AuthRequest, res: Response) => {
 
     if (!user) return res.status(404).json({ message: 'User not found' });
 
-    // Total earned all time
-    const totalEarned = await prisma.walletTransaction.aggregate({
+    // 1. Today's stats
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
+    const todayOnline = await prisma.walletTransaction.aggregate({
+      where: {
+        userId,
+        type: 'DELIVERY_EARNED',
+        createdAt: { gte: startOfToday, lte: endOfToday }
+      },
+      _sum: { amount: true }
+    });
+
+    const todayCash = await prisma.parcel.aggregate({
+      where: {
+        status: 'DELIVERED',
+        matchedTrip: { travelerId: userId },
+        paymentMethod: { in: ['CASH_ON_PICKUP', 'CASH_ON_DELIVERY'] },
+        updatedAt: { gte: startOfToday, lte: endOfToday }
+      },
+      _sum: { travelerPayout: true, price: true }
+    });
+
+    const tOnlineSum = todayOnline._sum?.amount || 0;
+    const tCashPayoutSum = todayCash._sum?.travelerPayout || 0;
+    const tCashTotalSum = todayCash._sum?.price || 0;
+
+    const todayEarned = tOnlineSum + tCashPayoutSum;
+
+    // 2. All-time stats
+    const totalEarnedAllTime = await prisma.walletTransaction.aggregate({
       where: { userId, type: 'DELIVERY_EARNED' },
       _sum: { amount: true }
     });
 
-    // Cash earned all time
-    const cashEarned = await prisma.parcel.aggregate({
+    const cashEarnedAllTime = await prisma.parcel.aggregate({
       where: {
         status: 'DELIVERED',
         matchedTrip: { travelerId: userId },
         paymentMethod: { in: ['CASH_ON_PICKUP', 'CASH_ON_DELIVERY'] }
       },
-      _sum: { travelerPayout: true }
+      _sum: { travelerPayout: true, price: true }
     });
 
-    // Pending withdrawals (requested but not yet processed)
+    const allOnlineSum = totalEarnedAllTime._sum?.amount || 0;
+    const allCashPayoutSum = cashEarnedAllTime._sum?.travelerPayout || 0;
+
+    const finalTotalEarnedAllTime = allOnlineSum + allCashPayoutSum;
+
+    // 3. Period stats (defaulting to all-time if no dates provided)
+    let periodEarned = finalTotalEarnedAllTime;
+    let periodCashEarnings = cashEarnedAllTime._sum.travelerPayout || 0;
+    let periodOnlineEarnings = totalEarnedAllTime._sum.amount || 0;
+
+    if (startDate && endDate) {
+      const s = new Date(startDate as string);
+      const e = new Date(endDate as string);
+      e.setHours(23, 59, 59, 999);
+
+      const rangeOnline = await prisma.walletTransaction.aggregate({
+        where: {
+          userId,
+          type: 'DELIVERY_EARNED',
+          createdAt: { gte: s, lte: e }
+        },
+        _sum: { amount: true }
+      });
+
+      const rangeCash = await prisma.parcel.aggregate({
+        where: {
+          status: 'DELIVERED',
+          matchedTrip: { travelerId: userId },
+          paymentMethod: { in: ['CASH_ON_PICKUP', 'CASH_ON_DELIVERY'] },
+          updatedAt: { gte: s, lte: e }
+        },
+        _sum: { travelerPayout: true, price: true }
+      });
+
+      periodOnlineEarnings = rangeOnline._sum?.amount || 0;
+      periodCashEarnings = rangeCash._sum?.travelerPayout || 0;
+      periodEarned = periodOnlineEarnings + periodCashEarnings;
+    }
+
+    // 4. Pending withdrawals
     const pendingWithdrawals = await prisma.walletTransaction.aggregate({
       where: { userId, type: 'WITHDRAWAL', status: 'PENDING' },
       _sum: { amount: true }
     });
 
-    // This month's earnings
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-
-    const thisMonthEarned = await prisma.walletTransaction.aggregate({
-      where: {
-        userId,
-        type: 'DELIVERY_EARNED',
-        createdAt: { gte: startOfMonth }
-      },
-      _sum: { amount: true }
-    });
-
-    const thisMonthCashEarned = await prisma.parcel.aggregate({
-      where: {
-        status: 'DELIVERED',
-        matchedTrip: { travelerId: userId },
-        paymentMethod: { in: ['CASH_ON_PICKUP', 'CASH_ON_DELIVERY'] },
-        updatedAt: { gte: startOfMonth } // Assuming updatedAt represents delivery date
-      },
-      _sum: { travelerPayout: true }
-    });
-
-    const finalOnlineEarned = totalEarned._sum.amount || 0;
-    const finalCashEarned = cashEarned._sum.travelerPayout || 0;
-    const finalTotalEarned = finalOnlineEarned + finalCashEarned;
-
-    const finalMonthOnline = thisMonthEarned._sum.amount || 0;
-    const finalMonthCash = thisMonthCashEarned._sum.travelerPayout || 0;
-    const finalMonthEarned = finalMonthOnline + finalMonthCash;
-
     return res.status(200).json({
       walletBalance: user.walletBalance,
-      totalEarned: finalTotalEarned,
-      cashEarned: finalCashEarned,
-      pendingWithdrawals: pendingWithdrawals._sum.amount || 0,
-      thisMonthEarned: finalMonthEarned
+      todayEarned,
+      todayCashCollection: tCashTotalSum,
+      totalEarned: finalTotalEarnedAllTime,
+      cashEarned: allCashPayoutSum,
+      periodEarned,
+      periodCashEarnings,
+      periodOnlineEarnings,
+      pendingWithdrawals: pendingWithdrawals._sum?.amount || 0
     });
   } catch (error) {
     console.error('getWalletSummary error:', error);
@@ -92,16 +134,30 @@ export const getWalletSummary = async (req: AuthRequest, res: Response) => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/wallet/transactions
-// Returns the traveler's full transaction history
+// Returns the traveler's transaction history with optional date filtering
 // ─────────────────────────────────────────────────────────────────────────────
 export const getTransactionHistory = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user.id as string;
+    const { startDate, endDate, limit } = req.query;
+
+    let where: any = { userId };
+
+    if (startDate && endDate) {
+      const s = new Date(startDate as string);
+      const e = new Date(endDate as string);
+      e.setHours(23, 59, 59, 999);
+
+      where.createdAt = {
+        gte: s,
+        lte: e
+      };
+    }
 
     const transactions = await prisma.walletTransaction.findMany({
-      where: { userId },
+      where,
       orderBy: { createdAt: 'desc' },
-      take: 50 // Last 50 transactions
+      take: limit ? parseInt(limit as string) : 100
     });
 
     return res.status(200).json(transactions);
