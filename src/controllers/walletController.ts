@@ -109,9 +109,14 @@ export const getWalletSummary = async (req: AuthRequest, res: Response) => {
       periodEarned = periodOnlineEarnings + periodCashEarnings;
     }
 
-    // 4. Pending withdrawals
+    // 4. Withdrawals
     const pendingWithdrawals = await prisma.walletTransaction.aggregate({
       where: { userId, type: 'WITHDRAWAL', status: 'PENDING' },
+      _sum: { amount: true }
+    });
+
+    const completedWithdrawals = await prisma.walletTransaction.aggregate({
+      where: { userId, type: 'WITHDRAWAL', status: 'COMPLETED' },
       _sum: { amount: true }
     });
 
@@ -124,7 +129,8 @@ export const getWalletSummary = async (req: AuthRequest, res: Response) => {
       periodEarned,
       periodCashEarnings,
       periodOnlineEarnings,
-      pendingWithdrawals: pendingWithdrawals._sum?.amount || 0
+      pendingWithdrawals: pendingWithdrawals._sum?.amount || 0,
+      totalWithdrawn: completedWithdrawals._sum?.amount || 0
     });
   } catch (error) {
     console.error('getWalletSummary error:', error);
