@@ -69,6 +69,9 @@ export const requestMatch = async (req: AuthRequest, res: Response) => {
       ? `${requesterName} wants to deliver their parcel "${parcel.name || 'Package'}" on your trip from ${trip.fromLocation} to ${trip.toLocation}.`
       : `${requesterName} wants to deliver your parcel "${parcel.name || 'Package'}" on their trip from ${trip.fromLocation} to ${trip.toLocation}.`;
 
+    const requester = await prisma.user.findUnique({ where: { id: userId } });
+    const requesterRating = requester?.roleActive === 'TRAVELER' ? requester.travelerRating : (requester?.customerRating || 0);
+
     await createNotification({
       userId: targetUserId,
       type: 'DELIVERY_REQUEST',
@@ -83,6 +86,7 @@ export const requestMatch = async (req: AuthRequest, res: Response) => {
         fromLocation: parcel.fromLocation,
         toLocation: parcel.toLocation,
         senderName: requesterName,
+        senderRating: requesterRating?.toString() || '0',
         offerPrice: parcel.price,
         imageUrls: parcel.imageUrls ? JSON.stringify(parcel.imageUrls) : '[]',
         createdAt: match.createdAt.toISOString()
@@ -115,13 +119,13 @@ export const getPendingMatches = async (req: AuthRequest, res: Response) => {
         )
       },
       include: {
-        parcel: { include: { sender: { select: { name: true, phone: true } } } },
+        parcel: { include: { sender: { select: { id: true, name: true, phone: true, travelerRating: true, customerRating: true } } } },
         trip: { 
           include: { 
             traveler: { select: { id: true, name: true, travelerRating: true, customerRating: true, selfieUrl: true } }
           } 
         },
-        sender: { select: { name: true, phone: true } }
+        sender: { select: { id: true, name: true, phone: true, travelerRating: true, customerRating: true } }
       }
     });
 
