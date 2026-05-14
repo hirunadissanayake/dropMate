@@ -406,3 +406,42 @@ export const getTripById = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Error fetching trip details' });
   }
 };
+
+export const toggleTripStatus = async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params as { id: string };
+    const travelerId = req.user.id;
+
+    const trip = await prisma.trip.findUnique({
+      where: { id },
+    });
+
+    if (!trip) {
+      return res.status(404).json({ message: 'Trip not found' });
+    }
+
+    if (trip.travelerId !== travelerId) {
+      return res.status(403).json({ message: 'Unauthorized' });
+    }
+
+    // Only allow toggling between ACTIVE and DEACTIVATED
+    if (trip.status !== 'ACTIVE' && (trip.status as string) !== 'DEACTIVATED') {
+      return res.status(400).json({ message: 'Only active or deactivated trips can be toggled' });
+    }
+
+    const newStatus = trip.status === 'ACTIVE' ? 'DEACTIVATED' : 'ACTIVE';
+
+    const updatedTrip = await prisma.trip.update({
+      where: { id },
+      data: { status: newStatus as any },
+    });
+
+    res.status(200).json({
+      message: `Trip is now ${newStatus.toLowerCase()}`,
+      trip: updatedTrip,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error toggling trip status' });
+  }
+};

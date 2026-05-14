@@ -26,6 +26,7 @@ enum ParcelStatus {
 
 enum TripStatus {
   ACTIVE
+  DEACTIVATED
   COMPLETED
   CANCELLED
 }
