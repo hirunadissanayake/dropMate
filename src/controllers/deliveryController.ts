@@ -324,7 +324,7 @@ export const initiatePickup = async (req: AuthRequest, res: Response) => {
     // Generate OTP for SENDER
     const code = generateOtp();
     await prisma.otp.create({
-      data: { userId: parcel.senderId, code, type: 'PICKUP', expiresAt: new Date(Date.now() + 30 * 60 * 1000) }
+      data: { userId: parcel.senderId, phone: parcel.sender.phone, code, type: 'PICKUP', expiresAt: new Date(Date.now() + 30 * 60 * 1000) }
     });
 
     await sendSms(parcel.sender.phone, `DropMate: Give this PICKUP code to your traveler: ${code}`);
