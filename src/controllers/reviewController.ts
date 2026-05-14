@@ -71,7 +71,8 @@ export const createReview = async (req: AuthRequest, res: Response) => {
       _avg: { rating: true },
     });
 
-    const newAvg = aggregations._avg.rating || 0;
+    const newAvgRaw = aggregations._avg.rating || 0;
+    const newAvg = Math.round(newAvgRaw * 10) / 10;
 
     await prisma.user.update({
       where: { id: revieweeId },
