@@ -206,7 +206,8 @@ export const getParcelById = async (req: AuthRequest, res: Response) => {
           include: {
             traveler: { select: { id: true, name: true, phone: true, rating: true, selfieUrl: true } }
           }
-        }
+        },
+        reviews: true
       }
     });
 

@@ -128,6 +128,9 @@ model User {
   bankDetails          BankDetail[]
   notifications        Notification[]       @relation("UserNotifications")
   topUpRequests        TopUpRequest[]
+
+  sentReviews          Review[]             @relation("Reviewer")
+  receivedReviews      Review[]             @relation("Reviewee")
 }
 
 model Parcel {
@@ -174,6 +177,7 @@ model Parcel {
   updatedAt       DateTime      @updatedAt
 
   matches         Match[]
+  reviews         Review[]
 }
 
 model Trip {
@@ -415,4 +419,21 @@ model DropMateBankDetail {
   isActive          Boolean  @default(true)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+}
+
+model Review {
+  id          String   @id @default(cuid())
+  rating      Int
+  comment     String?
+  reviewerId  String
+  revieweeId  String
+  parcelId    String
+  
+  reviewer    User     @relation("Reviewer", fields: [reviewerId], references: [id])
+  reviewee    User     @relation("Reviewee", fields: [revieweeId], references: [id])
+  parcel      Parcel   @relation(fields: [parcelId], references: [id])
+
+  createdAt   DateTime @default(now())
+
+  @@unique([parcelId, reviewerId])
 }

@@ -12,6 +12,7 @@ import bankRoutes from './routes/bankRoutes';
 import notificationRoutes from './routes/notificationRoutes';
 import bannerRoutes from './routes/bannerRoutes';
 import dropmateBankRoutes from './routes/dropmateBankRoutes';
+import reviewRoutes from './routes/reviewRoutes';
 
 
 
@@ -237,6 +238,7 @@ app.use('/api/bank-details', bankRoutes);
 app.use('/api/notifications', notificationRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/dropmate-bank-details', dropmateBankRoutes);
+app.use('/api/reviews', reviewRoutes);
 
 
 
