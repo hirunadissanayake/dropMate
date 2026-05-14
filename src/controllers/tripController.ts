@@ -211,7 +211,7 @@ export const getAllActiveTrips = async (req: Request, res: Response) => {
       prisma.trip.findMany({
         where,
         include: { 
-          traveler: { select: { id: true, name: true, rating: true, selfieUrl: true } },
+          traveler: { select: { id: true, name: true, travelerRating: true, customerRating: true, selfieUrl: true } },
           parcels: { select: { weight: true } },
           matches: {
             where: { senderId: (req as any).user.id, status: 'PENDING' },
@@ -368,8 +368,8 @@ export const getTripById = async (req: Request, res: Response) => {
             id: true,
             name: true,
             phone: true,
-            rating: true,
-            trustScore: true,
+            travelerRating: true,
+            customerRating: true,
             selfieUrl: true
           }
         },

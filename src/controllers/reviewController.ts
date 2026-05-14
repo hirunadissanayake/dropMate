@@ -49,27 +49,34 @@ export const createReview = async (req: AuthRequest, res: Response) => {
     }
 
     // Create the review
+    const revieweeRole = isSender ? 'TRAVELER' : 'CUSTOMER';
+
     const review = await prisma.review.create({
       data: {
         rating: Math.min(5, Math.max(1, rating)), // Clamp between 1-5
         comment,
         parcelId,
         reviewerId,
-        revieweeId
+        revieweeId,
+        revieweeRole
       }
     });
 
-    // Recalculate average rating for the reviewee
+    // Recalculate average rating for the reviewee based on the role
     const aggregations = await prisma.review.aggregate({
-      where: { revieweeId },
+      where: { 
+        revieweeId,
+        revieweeRole
+      },
       _avg: { rating: true },
-      _count: { rating: true }
     });
+
+    const newAvg = aggregations._avg.rating || 0;
 
     await prisma.user.update({
       where: { id: revieweeId },
       data: {
-        rating: aggregations._avg.rating || 0
+        [revieweeRole === 'TRAVELER' ? 'travelerRating' : 'customerRating']: newAvg
       }
     });
 

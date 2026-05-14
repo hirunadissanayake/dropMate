@@ -116,7 +116,11 @@ export const getPendingMatches = async (req: AuthRequest, res: Response) => {
       },
       include: {
         parcel: { include: { sender: { select: { name: true, phone: true } } } },
-        trip: { include: { traveler: { select: { name: true, rating: true } } } },
+        trip: { 
+          include: { 
+            traveler: { select: { id: true, name: true, travelerRating: true, customerRating: true, selfieUrl: true } }
+          } 
+        },
         sender: { select: { name: true, phone: true } }
       }
     });

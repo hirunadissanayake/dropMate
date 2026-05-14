@@ -108,8 +108,8 @@ model User {
 
   roleActive           UserRole?
 
-  rating          Float       @default(0)
-  trustScore      Float       @default(50)
+  travelerRating  Float       @default(0)
+  customerRating  Float       @default(0)
   walletBalance   Float       @default(0)  // Traveler's pending payout balance in LKR
 
   rejectionReason String?
@@ -421,19 +421,24 @@ model DropMateBankDetail {
   updatedAt         DateTime @updatedAt
 }
 
-model Review {
-  id          String   @id @default(cuid())
-  rating      Int
-  comment     String?
-  reviewerId  String
-  revieweeId  String
-  parcelId    String
-  
-  reviewer    User     @relation("Reviewer", fields: [reviewerId], references: [id])
-  reviewee    User     @relation("Reviewee", fields: [revieweeId], references: [id])
-  parcel      Parcel   @relation(fields: [parcelId], references: [id])
+enum ReviewRole {
+  CUSTOMER
+  TRAVELER
+}
 
+model Review {
+  id          String   @id @default(uuid())
+  rating      Int      @default(0)
+  comment     String?
+  parcelId    String
+  parcel      Parcel   @relation(fields: [parcelId], references: [id])
+  reviewerId  String
+  reviewer    User     @relation("Reviewer", fields: [reviewerId], references: [id])
+  revieweeId  String
+  reviewee    User     @relation("Reviewee", fields: [revieweeId], references: [id])
+  revieweeRole ReviewRole @default(CUSTOMER)
   createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   @@unique([parcelId, reviewerId])
 }

@@ -194,17 +194,17 @@ export const getParcelById = async (req: AuthRequest, res: Response) => {
     const parcel = await prisma.parcel.findUnique({
       where: { id: id },
       include: {
-        sender: { select: { id: true, name: true, phone: true, rating: true, selfieUrl: true } },
+        sender: { select: { id: true, name: true, phone: true, travelerRating: true, customerRating: true, selfieUrl: true } },
         matches: {
           include: {
-            traveler: { select: { id: true, name: true, phone: true, rating: true, selfieUrl: true } },
-            sender: { select: { id: true, name: true, rating: true, selfieUrl: true } },
+            traveler: { select: { id: true, name: true, phone: true, travelerRating: true, customerRating: true, selfieUrl: true } },
+            sender: { select: { id: true, name: true, travelerRating: true, customerRating: true, selfieUrl: true } },
             trip: true
           }
         },
         matchedTrip: {
           include: {
-            traveler: { select: { id: true, name: true, phone: true, rating: true, selfieUrl: true } }
+            traveler: { select: { id: true, name: true, phone: true, travelerRating: true, customerRating: true, selfieUrl: true } }
           }
         },
         reviews: true
@@ -261,7 +261,7 @@ export const getAllActiveParcels = async (req: Request, res: Response) => {
     const parcels = await prisma.parcel.findMany({
       where: { status: 'PENDING' },
       include: { 
-        sender: { select: { id: true, name: true, rating: true } },
+        sender: { select: { id: true, name: true, travelerRating: true, customerRating: true } },
         matches: {
           where: { travelerId: (req as any).user.id, status: 'PENDING' },
           select: { id: true }
