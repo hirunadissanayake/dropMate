@@ -28,21 +28,42 @@ export const requestMatch = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Parcel or Trip not found' });
     }
 
-    // Verify if already matched (same parcel + same trip)
+    // Check for existing match (same parcel + same trip)
     const existingMatch = await prisma.match.findFirst({
-      where: { parcelId, tripId, status: { not: 'REJECTED' } }
+      where: { parcelId, tripId }
     });
+
     if (existingMatch) {
-      return res.status(400).json({ message: 'A delivery request already exists' });
+      if (existingMatch.status === 'PENDING') {
+        return res.status(400).json({ message: 'A delivery request is already pending for this traveler.' });
+      }
+      if (['ACCEPTED', 'MATCHED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED'].includes(existingMatch.status)) {
+        return res.status(400).json({ message: 'This parcel is already matched with this traveler.' });
+      }
+      if (existingMatch.status === 'REJECTED') {
+        return res.status(400).json({ message: 'This traveler has already declined your delivery request.' });
+      }
+      // If CANCELLED or EXPIRED, we allow creating a NEW match record later in the code.
+      // However, to keep history clean, we'll actually DELETE the cancelled/expired record first 
+      // or just update it. Actually, create new is fine but let's delete the old one to avoid 
+      // unique constraint issues if we add them later, and keep DB clean.
+      if (['CANCELLED', 'EXPIRED'].includes(existingMatch.status)) {
+        await prisma.match.delete({ where: { id: existingMatch.id } });
+      }
     }
 
-    // OPTION 1 LOCK: Block if sender already has ANY pending request for this parcel
+    // OPTION 1 LOCK: Block if sender already has ANY OTHER pending request for this parcel
     const existingPendingForParcel = await prisma.match.findFirst({
-      where: { parcelId, status: 'PENDING' }
+      where: { 
+        parcelId, 
+        status: 'PENDING',
+        // Exclude the one we might have just checked if we didn't delete it
+      }
     });
+
     if (existingPendingForParcel) {
       return res.status(400).json({
-        message: 'You already have a pending request for this parcel. Wait for a response or cancel it first.'
+        message: 'You already have a pending request for this parcel with another traveler. Cancel it first to request someone else.'
       });
     }
 
