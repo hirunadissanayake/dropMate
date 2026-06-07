@@ -28,12 +28,22 @@ export const requestMatch = async (req: AuthRequest, res: Response) => {
       return res.status(404).json({ message: 'Parcel or Trip not found' });
     }
 
-    // Verify if already matched
+    // Verify if already matched (same parcel + same trip)
     const existingMatch = await prisma.match.findFirst({
       where: { parcelId, tripId, status: { not: 'REJECTED' } }
     });
     if (existingMatch) {
       return res.status(400).json({ message: 'A delivery request already exists' });
+    }
+
+    // OPTION 1 LOCK: Block if sender already has ANY pending request for this parcel
+    const existingPendingForParcel = await prisma.match.findFirst({
+      where: { parcelId, status: 'PENDING' }
+    });
+    if (existingPendingForParcel) {
+      return res.status(400).json({
+        message: 'You already have a pending request for this parcel. Wait for a response or cancel it first.'
+      });
     }
 
     // Determine who is requesting
@@ -273,7 +283,7 @@ export const rejectMatch = async (req: AuthRequest, res: Response) => {
 };
 
 /**
- * 5. EXPIRE MATCH: Called when the 15-minute timer runs out
+ * 5. EXPIRE MATCH: Called when the 10-minute timer runs out
  * PATCH /api/delivery/match/:id/expire
  */
 export const expireMatch = async (req: AuthRequest, res: Response) => {
@@ -551,5 +561,62 @@ export const verifyDelivery = async (req: AuthRequest, res: Response) => {
     res.status(200).json({ message: 'Parcel delivered! Transaction complete.' });
   } catch (error) {
     res.status(500).json({ message: 'Error verifying delivery' });
+  }
+};
+
+/**
+ * CANCEL MATCH: Sender withdraws their PENDING request anytime before traveler accepts
+ * PATCH /api/delivery/match/:id/cancel
+ */
+export const cancelMatch = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const userId = req.user.id as string;
+
+    const match = await prisma.match.findUnique({
+      where: { id },
+      include: { parcel: true }
+    });
+
+    if (!match) {
+      return res.status(404).json({ message: 'Request not found' });
+    }
+
+    // Only the SENDER can cancel
+    if (match.senderId !== userId) {
+      return res.status(403).json({ message: 'Only the sender can cancel this request' });
+    }
+
+    // Can only cancel if still PENDING (not yet accepted)
+    if (match.status !== 'PENDING') {
+      return res.status(400).json({ message: 'Cannot cancel — request has already been accepted or closed' });
+    }
+
+    await prisma.match.update({
+      where: { id },
+      data: { status: 'CANCELLED' }
+    });
+
+    // 🔌 Emit real-time socket event → traveler's modal auto-closes instantly
+    try {
+      io.to(match.travelerId).emit('request_cancelled', { matchId: id });
+      console.log(`Socket: request_cancelled emitted to traveler ${match.travelerId} for match ${id}`);
+    } catch (socketError) {
+      console.error('Socket emit failed (non-critical):', socketError);
+    }
+
+    // Push notification as fallback (for background/offline traveler)
+    await createNotification({
+      userId: match.travelerId,
+      type: 'MATCH_CANCELLED',
+      title: 'Delivery Request Withdrawn',
+      body: `The sender has withdrawn the delivery request for "${match.parcel?.name || 'a parcel'}".`,
+      metadata: { matchId: id }
+    });
+
+    res.status(200).json({ message: 'Request cancelled successfully' });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Error cancelling request' });
   }
 };

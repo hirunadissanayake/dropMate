@@ -5,6 +5,7 @@ import {
   acceptMatch,
   rejectMatch,
   expireMatch,
+  cancelMatch,
   initiatePickup, 
   verifyPickup, 
   initiateDelivery, 
@@ -22,6 +23,7 @@ router.get('/pending-matches', getPendingMatches);
 router.patch('/match/:id/accept', acceptMatch);
 router.patch('/match/:id/reject', rejectMatch);
 router.patch('/match/:id/expire', expireMatch);
+router.patch('/match/:id/cancel', cancelMatch);
 
 // 2. LOGISTICS (Restricted to Travelers only)
 router.use(isTraveler);
