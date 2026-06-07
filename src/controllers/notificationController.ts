@@ -157,12 +157,16 @@ export const createNotification = async (params: {
         ...params.metadata 
       };
 
+      // Use matchId as tag for grouping/cancelling notifications
+      const tag = (params.metadata as any)?.matchId ? `match_${(params.metadata as any).matchId}` : undefined;
+
       await sendPushNotification(
         user.fcmToken,
         params.title,
         params.body,
         fcmData,
-        sound
+        sound,
+        tag
       );
     } else {
       console.log(`⚠️ No FCM token found for user ${params.userId}. Push notification skipped.`);
@@ -190,7 +194,7 @@ export const sendBroadcast = async (req: Request, res: Response) => {
     });
 
     // 2. Create notification records in DB
-    const notificationData = users.map(user => ({
+    const notificationData = users.map((user: any) => ({
       userId: user.id,
       type: 'GENERAL' as any,
       title,
@@ -205,7 +209,7 @@ export const sendBroadcast = async (req: Request, res: Response) => {
     io.emit('broadcast_notification', { title, body });
 
     // 4. Send Push Notifications (async background)
-    users.forEach(user => {
+    users.forEach((user: any) => {
       if (user.fcmToken) {
         sendPushNotification(user.fcmToken, title, body, { type: 'GENERAL' }).catch(err => {
           console.error(`Failed to send broadcast push to ${user.id}:`, err.message);

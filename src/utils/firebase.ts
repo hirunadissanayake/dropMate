@@ -13,7 +13,7 @@ try {
     console.error('❌ Error initializing Firebase Admin:', error);
 }
 
-export const sendPushNotification = async (token: string, title: string, body: string, data?: any, sound?: string) => {
+export const sendPushNotification = async (token: string, title: string, body: string, data?: any, sound?: string, tag?: string) => {
     try {
         // FCM 'data' field values must be strings
         const stringifiedData: { [key: string]: string } = {};
@@ -35,21 +35,31 @@ export const sendPushNotification = async (token: string, title: string, body: s
             token: token,
         };
 
+        // Android specific options
+        message.android = {
+            priority: (sound || tag) ? 'high' : 'normal',
+            notification: {
+                clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+                channelId: 'delivery_requests', // MUST match the channel on the app
+                ticker: 'New Delivery Request',
+            }
+        };
+
+        if (tag) {
+            message.android.notification.tag = tag;
+        }
+
         if (sound) {
-            // Android sound (no extension) and Channel ID
-            message.android = {
-                priority: 'high',
-                notification: {
-                    sound: sound.replace('.mp3', ''),
-                    channelId: 'delivery_requests', // MUST match the channel on the app
-                    ticker: 'New Delivery Request',
-                }
-            };
+            // Android sound (no extension)
+            message.android.notification.sound = sound.replace('.mp3', '');
+        }
+
+        if (sound || tag) {
             // iOS sound (with extension)
             message.apns = {
                 payload: {
                     aps: {
-                        sound: sound.endsWith('.mp3') ? sound : `${sound}.mp3`,
+                        sound: sound ? (sound.endsWith('.mp3') ? sound : `${sound}.mp3`) : 'default',
                     }
                 }
             };
