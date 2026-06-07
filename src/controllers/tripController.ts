@@ -6,6 +6,9 @@ const prisma = new PrismaClient();
 
 interface AuthRequest extends Request {
   user?: any;
+  body: any;
+  query: any;
+  params: any;
 }
 
 export const createTrip = async (req: AuthRequest, res: Response) => {
@@ -123,10 +126,20 @@ export const deleteTrip = async (req: AuthRequest, res: Response) => {
 
 export const getMyTrips = async (req: AuthRequest, res: Response) => {
   try {
-    const trips = await prisma.trip.findMany({
-      where: { travelerId: req.user.id },
-      include: { parcels: true }
-    });
+    const page = parseInt(req.query.page as string) || 1;
+    const limit = parseInt(req.query.limit as string) || 10;
+    const skip = (page - 1) * limit;
+
+    const [trips, total] = await Promise.all([
+      prisma.trip.findMany({
+        where: { travelerId: req.user.id },
+        include: { parcels: true },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.trip.count({ where: { travelerId: req.user.id } }),
+    ]);
 
     // Get current time in Sri Lanka timezone
     const nowStr = new Date().toLocaleString("en-US", {timeZone: "Asia/Colombo"});
@@ -137,7 +150,7 @@ export const getMyTrips = async (req: AuthRequest, res: Response) => {
     const currentHours = slNow.getHours();
     const currentMinutes = slNow.getMinutes();
 
-    const tripsWithExpiry = trips.map(t => {
+    const tripsWithExpiry = trips.map((t: any) => {
       let isExpired = false;
       const tripDate = new Date(t.travelDate); // Assumes travelDate is correctly stored (or only cares about the date part)
       // Normalize tripDate to local start of day for comparison
@@ -182,7 +195,13 @@ export const getMyTrips = async (req: AuthRequest, res: Response) => {
       };
     });
 
-    res.status(200).json(tripsWithExpiry);
+    res.status(200).json({
+      trips: tripsWithExpiry,
+      total,
+      page,
+      limit,
+      hasMore: skip + trips.length < total,
+    });
   } catch (error) {
     res.status(500).json({ message: 'Error fetching trips' });
   }
@@ -225,7 +244,7 @@ export const getAllActiveTrips = async (req: Request, res: Response) => {
       prisma.trip.count({ where })
     ]);
 
-    const tripsWithStatus = trips.map(t => {
+    const tripsWithStatus = trips.map((t: any) => {
       const usedCapacity = (t as any).parcels?.reduce((sum: number, p: any) => sum + (p.weight || 0), 0) || 0;
       return {
         ...t,
@@ -241,7 +260,7 @@ export const getAllActiveTrips = async (req: Request, res: Response) => {
     const currentHours = slNow.getHours();
     const currentMinutes = slNow.getMinutes();
 
-    const availableTrips = tripsWithStatus.filter(t => {
+    const availableTrips = tripsWithStatus.filter((t: any) => {
       if (t.isFull) return false;
 
       const tripDate = new Date(t.travelDate);
@@ -395,7 +414,7 @@ export const getTripById = async (req: Request, res: Response) => {
       select: { parcelId: true }
     });
 
-    const requestedParcelIds = existingMatches.map(m => m.parcelId);
+    const requestedParcelIds = existingMatches.map((m: any) => m.parcelId);
     
     // Calculate isExpired
     const isExpired = checkTripExpired(trip.travelDate, trip.travelTime);
