@@ -26,49 +26,53 @@ export const sendPushNotification = async (token: string, title: string, body: s
         // Add standard click action for background handling
         stringifiedData.click_action = 'FLUTTER_NOTIFICATION_CLICK';
 
+        // Standard structure without top-level notification to prevent "double" behavior on some devices
         const message: any = {
-            notification: {
-                title,
-                body,
-            },
             data: stringifiedData,
             token: token,
         };
 
+        if (tag) {
+            message.collapseKey = tag; // Group messages in FCM queue
+        }
+
         // Android specific options
         message.android = {
-            priority: 'high', // Both must be high to override properly
+            priority: 'high',
+            collapseKey: tag, // Use collapse_key here as well for Android
             notification: {
+                title, 
+                body,  
                 clickAction: 'FLUTTER_NOTIFICATION_CLICK',
-                channelId: 'delivery_requests', // MUST match for both to let tag overwrite work
+                channelId: 'delivery_requests',
+                tag: tag, 
                 ticker: title,
                 sticky: false,
                 visibility: 'public',
-            }
+            },
+            data: stringifiedData // Duplicate data here for some Android versions
         };
 
-        if (tag) {
-            message.android.notification.tag = tag;
-        }
-
         if (sound) {
-            // Android sound (no extension)
             message.android.notification.sound = sound.replace('.mp3', '');
         } else if (tag) {
-            // FORCE DEFAULT SOUND (to stop custom looping sound from previous notification)
-            message.android.notification.sound = 'default';
+            // Force a different channel for cancellations to try and break the ringtone
+            // message.android.notification.channelId = 'default'; 
+            message.android.notification.sound = 'default'; 
         }
 
-        if (sound || tag) {
-            // iOS sound (with extension)
-            message.apns = {
-                payload: {
-                    aps: {
-                        sound: sound ? (sound.endsWith('.mp3') ? sound : `${sound}.mp3`) : (tag ? 'default' : 'default'),
-                    }
+        // iOS specific options
+        message.apns = {
+            payload: {
+                aps: {
+                    alert: {
+                        title,
+                        body,
+                    },
+                    sound: sound ? (sound.endsWith('.mp3') ? sound : `${sound}.mp3`) : (tag ? undefined : 'default'),
                 }
-            };
-        }
+            }
+        };
 
         const response = await admin.messaging().send(message);
         console.log('Successfully sent message:', response);
