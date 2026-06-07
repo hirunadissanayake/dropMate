@@ -33,50 +33,27 @@ export const sendPushNotification = async (token: string, title: string, body: s
                 body,
             },
             data: stringifiedData,
+            android: {
+                priority: 'high',
+                notification: {
+                    channelId: 'delivery_requests',
+                    sound: sound ? sound.replace('.mp3', '') : 'default',
+                    tag: tag,
+                },
+            },
+            apns: {
+                payload: {
+                    aps: {
+                        sound: sound ? (sound.endsWith('.mp3') ? sound : `${sound}.mp3`) : (tag ? undefined : 'default'),
+                    },
+                },
+            },
             token: token,
         };
 
         if (tag) {
-            message.collapseKey = tag; // Group messages in FCM queue
+            message.android.collapseKey = tag;
         }
-
-        // Android specific options
-        message.android = {
-            priority: 'high',
-            collapseKey: tag, // Use collapse_key here as well for Android
-            notification: {
-                title, 
-                body,  
-                clickAction: 'FLUTTER_NOTIFICATION_CLICK',
-                channelId: 'delivery_requests',
-                tag: tag, 
-                ticker: title,
-                sticky: false,
-                visibility: 'public',
-            },
-            data: stringifiedData // Duplicate data here for some Android versions
-        };
-
-        if (sound) {
-            message.android.notification.sound = sound.replace('.mp3', '');
-        } else if (tag) {
-            // Force a different channel for cancellations to try and break the ringtone
-            // message.android.notification.channelId = 'default'; 
-            message.android.notification.sound = 'default'; 
-        }
-
-        // iOS specific options
-        message.apns = {
-            payload: {
-                aps: {
-                    alert: {
-                        title,
-                        body,
-                    },
-                    sound: sound ? (sound.endsWith('.mp3') ? sound : `${sound}.mp3`) : (tag ? undefined : 'default'),
-                }
-            }
-        };
 
         const response = await admin.messaging().send(message);
         console.log('Successfully sent message:', response);
