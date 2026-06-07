@@ -37,11 +37,13 @@ export const sendPushNotification = async (token: string, title: string, body: s
 
         // Android specific options
         message.android = {
-            priority: (sound || tag) ? 'high' : 'normal',
+            priority: 'high', // Both must be high to override properly
             notification: {
                 clickAction: 'FLUTTER_NOTIFICATION_CLICK',
-                channelId: sound ? 'delivery_requests' : 'default', // Only use loud channel for requests
+                channelId: 'delivery_requests', // MUST match for both to let tag overwrite work
                 ticker: title,
+                sticky: false,
+                visibility: 'public',
             }
         };
 
@@ -52,6 +54,9 @@ export const sendPushNotification = async (token: string, title: string, body: s
         if (sound) {
             // Android sound (no extension)
             message.android.notification.sound = sound.replace('.mp3', '');
+        } else if (tag) {
+            // FORCE DEFAULT SOUND (to stop custom looping sound from previous notification)
+            message.android.notification.sound = 'default';
         }
 
         if (sound || tag) {
@@ -59,7 +64,7 @@ export const sendPushNotification = async (token: string, title: string, body: s
             message.apns = {
                 payload: {
                     aps: {
-                        sound: sound ? (sound.endsWith('.mp3') ? sound : `${sound}.mp3`) : (tag ? undefined : 'default'),
+                        sound: sound ? (sound.endsWith('.mp3') ? sound : `${sound}.mp3`) : (tag ? 'default' : 'default'),
                     }
                 }
             };
