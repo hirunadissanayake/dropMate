@@ -26,8 +26,12 @@ export const sendPushNotification = async (token: string, title: string, body: s
         // Add standard click action for background handling
         stringifiedData.click_action = 'FLUTTER_NOTIFICATION_CLICK';
 
-        // Standard structure without top-level notification to prevent "double" behavior on some devices
+        // Standard structure with top-level notification for reliability
         const message: any = {
+            notification: {
+                title,
+                body,
+            },
             data: stringifiedData,
             token: token,
         };
