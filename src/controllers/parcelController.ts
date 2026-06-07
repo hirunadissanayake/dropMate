@@ -106,9 +106,10 @@ export const getMyParcels = async (req: AuthRequest, res: Response) => {
       prisma.parcel.count({ where: { senderId: userId } }),
     ]);
 
-    const parcelsWithStatus = parcels.map(p => ({
+    const parcelsWithStatus = parcels.map((p: any) => ({
       ...p,
       isRequested: p.matches.length > 0,
+      pendingMatchId: p.matches.length > 0 ? p.matches[0].id : null,
       matches: undefined,
     }));
 
@@ -139,6 +140,12 @@ export const cancelParcel = async (req: AuthRequest, res: Response) => {
 
     await prisma.parcel.update({
       where: { id },
+      data: { status: 'CANCELLED' }
+    });
+
+    // Also cancel any pending matches
+    await prisma.match.updateMany({
+      where: { parcelId: id, status: 'PENDING' },
       data: { status: 'CANCELLED' }
     });
 
@@ -269,7 +276,7 @@ export const getAllActiveParcels = async (req: Request, res: Response) => {
       }
     });
 
-    const parcelsWithStatus = parcels.map(p => ({
+    const parcelsWithStatus = parcels.map((p: any) => ({
       ...p,
       isRequested: p.matches.length > 0,
       matches: undefined // Clean up the response
