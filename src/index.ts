@@ -208,7 +208,7 @@ io.on('connection', (socket) => {
       });
 
       socket.emit('support_history', {
-        messages: history, // Send descending (newest first)
+        messages: history.reverse(), // Send chronologically (oldest first)
         total,
         page,
         hasMore: skip + history.length < total
