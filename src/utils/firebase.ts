@@ -40,8 +40,8 @@ export const sendPushNotification = async (token: string, title: string, body: s
             priority: (sound || tag) ? 'high' : 'normal',
             notification: {
                 clickAction: 'FLUTTER_NOTIFICATION_CLICK',
-                channelId: 'delivery_requests', // MUST match the channel on the app
-                ticker: 'New Delivery Request',
+                channelId: sound ? 'delivery_requests' : 'default', // Only use loud channel for requests
+                ticker: title,
             }
         };
 
@@ -59,7 +59,7 @@ export const sendPushNotification = async (token: string, title: string, body: s
             message.apns = {
                 payload: {
                     aps: {
-                        sound: sound ? (sound.endsWith('.mp3') ? sound : `${sound}.mp3`) : 'default',
+                        sound: sound ? (sound.endsWith('.mp3') ? sound : `${sound}.mp3`) : (tag ? undefined : 'default'),
                     }
                 }
             };
