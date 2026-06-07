@@ -79,7 +79,7 @@ io.on('connection', (socket) => {
 
         console.log(`Broadcasting push to ${users.length} users...`);
 
-        users.forEach(user => {
+        users.forEach((user: any) => {
           if (user.fcmToken) {
             sendPushNotification(
               user.fcmToken,
@@ -183,20 +183,36 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('get_support_history', async (userId: string) => {
+  socket.on('get_support_history', async (data: { userId: string, page?: number, limit?: number }) => {
     try {
-      const history = await prisma.supportMessage.findMany({
-        where: { userId },
-        orderBy: { createdAt: 'asc' }
-      });
+      const { userId, page = 1, limit = 20 } = typeof data === 'string' ? { userId: data } : data;
+      const skip = (page - 1) * limit;
+
+      const [history, total] = await Promise.all([
+        prisma.supportMessage.findMany({
+          where: { userId },
+          orderBy: { createdAt: 'desc' },
+          skip,
+          take: limit
+        }),
+        prisma.supportMessage.count({ where: { userId } })
+      ]);
       
-      // Mark as read when admin fetches history
+      // Reverse history to maintain chronological order for the client if needed, 
+      // but usually the client handles the order. We'll send it as is (desc).
+      
+      // Mark as read when admin fetches history (if userId is provided)
       await prisma.supportMessage.updateMany({
         where: { userId, isAdmin: false, isRead: false },
         data: { isRead: true }
       });
 
-      socket.emit('support_history', history);
+      socket.emit('support_history', {
+        messages: history, // Send descending (newest first)
+        total,
+        page,
+        hasMore: skip + history.length < total
+      });
     } catch (error) {
       console.error('Error fetching support history:', error);
     }
