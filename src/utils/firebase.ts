@@ -36,8 +36,8 @@ export const sendPushNotification = async (token: string, title: string, body: s
             android: {
                 priority: 'high',
                 notification: {
-                    channelId: sound ? 'delivery_requests' : 'silent',
-                    sound: sound ? sound.replace('.mp3', '') : undefined,
+                    channelId: sound ? 'delivery_requests' : 'updates',
+                    sound: sound ? sound.replace('.mp3', '') : (sound === undefined ? undefined : 'default'),
                     tag: tag,
                 },
             },
