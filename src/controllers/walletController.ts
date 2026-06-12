@@ -145,7 +145,7 @@ export const getWalletSummary = async (req: AuthRequest, res: Response) => {
 export const getTransactionHistory = async (req: AuthRequest, res: Response) => {
   try {
     const userId = req.user.id as string;
-    const { startDate, endDate, limit } = req.query;
+    const { startDate, endDate, page, limit } = req.query;
 
     let where: any = { userId };
 
@@ -160,23 +160,37 @@ export const getTransactionHistory = async (req: AuthRequest, res: Response) => 
       };
     }
 
-    const transactions = await prisma.walletTransaction.findMany({
-      where,
-      include: {
-        parcel: {
-          select: {
-            price: true,
-            platformFee: true,
-            travelerPayout: true,
-            paymentMethod: true
-          }
-        }
-      },
-      orderBy: { createdAt: 'desc' },
-      take: limit ? parseInt(limit as string) : 100
-    });
+    const pageNum = parseInt(page as string) || 1;
+    const limitNum = parseInt(limit as string) || 10;
+    const skip = (pageNum - 1) * limitNum;
 
-    return res.status(200).json(transactions);
+    const [transactions, total] = await Promise.all([
+      prisma.walletTransaction.findMany({
+        where,
+        include: {
+          parcel: {
+            select: {
+              price: true,
+              platformFee: true,
+              travelerPayout: true,
+              paymentMethod: true
+            }
+          }
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limitNum
+      }),
+      prisma.walletTransaction.count({ where })
+    ]);
+
+    return res.status(200).json({
+      transactions,
+      total,
+      page: pageNum,
+      limit: limitNum,
+      hasMore: skip + transactions.length < total
+    });
   } catch (error) {
     console.error('getTransactionHistory error:', error);
     return res.status(500).json({ message: 'Error fetching transactions' });
