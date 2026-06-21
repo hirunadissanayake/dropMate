@@ -130,6 +130,7 @@ model User {
   bankDetails          BankDetail[]
   notifications        Notification[]       @relation("UserNotifications")
   topUpRequests        TopUpRequest[]
+  tripTemplates        TripTemplate[]       @relation("UserTripTemplates")
 
   sentReviews          Review[]             @relation("Reviewer")
   receivedReviews      Review[]             @relation("Reviewee")
@@ -444,3 +445,26 @@ model Review {
 
   @@unique([parcelId, reviewerId])
 }
+
+model TripTemplate {
+  id            String   @id @default(cuid())
+  travelerId    String
+  traveler      User     @relation("UserTripTemplates", fields: [travelerId], references: [id])
+  
+  templateName  String
+  fromLocation  String
+  toLocation    String
+  capacityKg    Float
+  travelTime    String?
+  exactLocation String?
+  vehicleType   String?
+  pickupUrl     String?
+  dropoffUrl    String?
+  note          String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([travelerId])
+}
+
