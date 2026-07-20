@@ -23,16 +23,24 @@ import {
   getTopUpsAdmin,
   updateTopUpStatus
 } from '../controllers/adminController';
-import { 
-  createRoute, 
-  getRoutes, 
-  updateRoute, 
+import {
+  createRoute,
+  getRoutes,
+  updateRoute,
   deleteRoute,
-  createWeightSlab, 
-  getWeightSlabs, 
+  createWeightSlab,
+  getWeightSlabs,
   updateWeightSlab,
   deleteWeightSlab,
-  updateConfig, 
+  createParcelCategory,
+  getParcelCategories,
+  updateParcelCategory,
+  deleteParcelCategory,
+  createCategoryFare,
+  getCategoryFares,
+  updateCategoryFare,
+  deleteCategoryFare,
+  updateConfig,
   getConfig,
   deleteConfig
 } from '../controllers/pricingController';
@@ -93,6 +101,18 @@ router.post('/weight-slabs', createWeightSlab);
 router.get('/weight-slabs', getWeightSlabs);
 router.put('/weight-slabs/:id', updateWeightSlab);
 router.delete('/weight-slabs/:id', deleteWeightSlab);
+
+// Parcel Categories
+router.post('/parcel-categories', createParcelCategory);
+router.get('/parcel-categories', getParcelCategories);
+router.put('/parcel-categories/:id', updateParcelCategory);
+router.delete('/parcel-categories/:id', deleteParcelCategory);
+
+// Category Fares (fixed fares per category per route)
+router.post('/category-fares', createCategoryFare);
+router.get('/category-fares', getCategoryFares);
+router.put('/category-fares/:id', updateCategoryFare);
+router.delete('/category-fares/:id', deleteCategoryFare);
 
 // Platform Config
 router.post('/config', updateConfig);

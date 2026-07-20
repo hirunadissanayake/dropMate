@@ -137,6 +137,149 @@ export const deleteWeightSlab = async (req: Request, res: Response) => {
   }
 };
 
+// --- PARCEL CATEGORY MANAGEMENT (ADMIN) ---
+
+export const createParcelCategory = async (req: Request, res: Response) => {
+  try {
+    const { name, pricingType, description } = req.body;
+
+    const category = await prisma.parcelCategory.create({
+      data: { name, pricingType, description }
+    });
+
+    res.status(201).json(category);
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ message: 'A category with this name already exists' });
+    }
+    res.status(500).json({ message: 'Error creating parcel category' });
+  }
+};
+
+export const getParcelCategories = async (req: Request, res: Response) => {
+  try {
+    const categories = await prisma.parcelCategory.findMany({
+      orderBy: { createdAt: 'asc' }
+    });
+    res.status(200).json(categories);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching parcel categories' });
+  }
+};
+
+export const updateParcelCategory = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const { name, pricingType, description, isActive } = req.body;
+
+    const category = await prisma.parcelCategory.update({
+      where: { id },
+      data: {
+        name: name !== undefined ? name : undefined,
+        pricingType: pricingType !== undefined ? pricingType : undefined,
+        description: description !== undefined ? description : undefined,
+        isActive: isActive !== undefined ? isActive : undefined
+      }
+    });
+
+    res.status(200).json(category);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating parcel category' });
+  }
+};
+
+export const deleteParcelCategory = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    await prisma.parcelCategory.delete({ where: { id } });
+    res.status(200).json({ message: 'Parcel category deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting parcel category' });
+  }
+};
+
+// --- CATEGORY FARE MANAGEMENT (ADMIN) ---
+
+export const createCategoryFare = async (req: Request, res: Response) => {
+  try {
+    const { categoryId, routeId, fare } = req.body;
+
+    const categoryFare = await prisma.categoryFare.create({
+      data: {
+        categoryId,
+        routeId,
+        fare: parseFloat(fare)
+      }
+    });
+
+    res.status(201).json(categoryFare);
+  } catch (error: any) {
+    if (error.code === 'P2002') {
+      return res.status(400).json({ message: 'A fare for this category and route already exists' });
+    }
+    res.status(500).json({ message: 'Error creating category fare' });
+  }
+};
+
+export const getCategoryFares = async (req: Request, res: Response) => {
+  try {
+    const { categoryId } = req.query;
+
+    const fares = await prisma.categoryFare.findMany({
+      where: categoryId ? { categoryId: categoryId as string } : undefined,
+      include: { category: true, route: true },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    res.status(200).json(fares);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching category fares' });
+  }
+};
+
+export const updateCategoryFare = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    const { fare, isActive } = req.body;
+
+    const categoryFare = await prisma.categoryFare.update({
+      where: { id },
+      data: {
+        fare: fare !== undefined ? parseFloat(fare) : undefined,
+        isActive: isActive !== undefined ? isActive : undefined
+      }
+    });
+
+    res.status(200).json(categoryFare);
+  } catch (error) {
+    res.status(500).json({ message: 'Error updating category fare' });
+  }
+};
+
+export const deleteCategoryFare = async (req: Request, res: Response) => {
+  try {
+    const id = req.params.id as string;
+    await prisma.categoryFare.delete({ where: { id } });
+    res.status(200).json({ message: 'Category fare deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting category fare' });
+  }
+};
+
+// --- ACTIVE CATEGORIES (CUSTOMER APP) ---
+
+export const getActiveParcelCategories = async (req: Request, res: Response) => {
+  try {
+    const categories = await prisma.parcelCategory.findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: 'asc' }
+    });
+    res.status(200).json(categories);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching parcel categories' });
+  }
+};
+
 // --- PLATFORM CONFIG ---
 
 export const updateConfig = async (req: Request, res: Response) => {
@@ -178,16 +321,17 @@ export const deleteConfig = async (req: Request, res: Response) => {
 
 export const getPricePreview = async (req: Request, res: Response) => {
   try {
-    const { fromLocation, toLocation, weight } = req.query;
-    
-    if (!fromLocation || !toLocation || !weight) {
+    const { fromLocation, toLocation, categoryId, weight } = req.query;
+
+    if (!fromLocation || !toLocation || !categoryId) {
       return res.status(400).json({ message: 'Missing parameters' });
     }
 
     const pricing = await calculateParcelPrice(
       fromLocation as string,
       toLocation as string,
-      parseFloat(weight as string)
+      categoryId as string,
+      weight !== undefined ? parseFloat(weight as string) : undefined
     );
 
     res.status(200).json(pricing);

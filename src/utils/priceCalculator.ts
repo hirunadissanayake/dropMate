@@ -12,7 +12,8 @@ export interface PricingResult {
 export const calculateParcelPrice = async (
   fromLocation: string,
   toLocation: string,
-  weight: number
+  categoryId: string,
+  weight?: number
 ): Promise<PricingResult> => {
   // 1. Find the Route
   const route = await prisma.route.findFirst({
@@ -27,26 +28,53 @@ export const calculateParcelPrice = async (
     throw new Error(`No active route found from ${fromLocation} to ${toLocation}`);
   }
 
-  // 2. Find the Weight Slab
-  const slab = await prisma.weightSlab.findFirst({
-    where: {
-      minWeight: { lte: weight },
-      maxWeight: { gt: weight },
-      isActive: true,
-    },
+  // 2. Find the Category
+  const category = await prisma.parcelCategory.findUnique({
+    where: { id: categoryId },
   });
 
-  const weightSurcharge = slab ? slab.surcharge : 0;
+  if (!category || !category.isActive) {
+    throw new Error('Invalid or inactive parcel category');
+  }
 
-  // 3. Get Platform Fee Percentage
+  // 3. Calculate subtotal based on the category's pricing type
+  let subtotal: number;
+
+  if (category.pricingType === 'FIXED_FARE') {
+    const categoryFare = await prisma.categoryFare.findFirst({
+      where: { categoryId: category.id, routeId: route.id, isActive: true },
+    });
+
+    if (!categoryFare) {
+      throw new Error(`No fixed fare configured for ${category.name} on this route`);
+    }
+
+    subtotal = categoryFare.fare;
+  } else {
+    if (weight === undefined || weight === null || isNaN(weight)) {
+      throw new Error('Weight is required for this parcel category');
+    }
+
+    const slab = await prisma.weightSlab.findFirst({
+      where: {
+        minWeight: { lte: weight },
+        maxWeight: { gt: weight },
+        isActive: true,
+      },
+    });
+
+    const weightSurcharge = slab ? slab.surcharge : 0;
+    subtotal = route.rate + weightSurcharge;
+  }
+
+  // 4. Get Platform Fee Percentage
   const config = await prisma.platformConfig.findUnique({
     where: { key: 'platformFeePercent' },
   });
 
   const platformFeePercent = config ? parseFloat(config.value) : 15; // Default to 15%
 
-  // 4. Calculate final values
-  const subtotal = route.rate + weightSurcharge;
+  // 5. Calculate final values
   const platformFee = subtotal * (platformFeePercent / 100);
   const travelerPayout = subtotal - platformFee;
 

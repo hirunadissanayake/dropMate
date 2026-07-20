@@ -53,6 +53,11 @@ enum DeliveryMethod {
   DOOR_DELIVERY
 }
 
+enum PricingType {
+  WEIGHT_BASED   // Price = Route rate + Weight Slab surcharge
+  FIXED_FARE     // Price = flat fare set per route for this category (e.g. Vehicle transport)
+}
+
 enum PaymentStatus {
   PENDING
   PAID
@@ -144,9 +149,12 @@ model Parcel {
   name            String?
   fromLocation    String
   toLocation      String
-  weight          Float
+  weight          Float?        // Not required for FIXED_FARE categories (e.g. Vehicle)
   description     String?
   imageUrls       String[]
+
+  categoryId      String?
+  category        ParcelCategory? @relation(fields: [categoryId], references: [id])
 
   // ✅ NEW RECEIVER SYSTEM
   receiverName    String
@@ -271,6 +279,7 @@ model Route {
   updatedAt     DateTime @updatedAt
 
   parcels       Parcel[]
+  categoryFares CategoryFare[]
 
   @@unique([fromLocation, toLocation])        // No duplicate routes
 }
@@ -284,6 +293,36 @@ model WeightSlab {
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+}
+
+model ParcelCategory {
+  id            String       @id @default(cuid())
+  name          String       @unique                // e.g., "General", "Vehicle"
+  pricingType   PricingType  @default(WEIGHT_BASED)
+  description   String?
+  isActive      Boolean      @default(true)
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+
+  parcels       Parcel[]
+  fares         CategoryFare[]
+}
+
+model CategoryFare {
+  id            String         @id @default(cuid())
+  categoryId    String
+  category      ParcelCategory @relation(fields: [categoryId], references: [id])
+
+  routeId       String
+  route         Route          @relation(fields: [routeId], references: [id])
+
+  fare          Float                                // Flat fare in LKR for this category on this route
+  isActive      Boolean        @default(true)
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([categoryId, routeId])
 }
 
 model PlatformConfig {

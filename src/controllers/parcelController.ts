@@ -14,11 +14,15 @@ interface AuthRequest extends Request {
 
 export const createParcel = async (req: AuthRequest, res: Response) => {
   try {
-    const { 
-      name, fromLocation, toLocation, weight, description, 
+    const {
+      name, fromLocation, toLocation, categoryId, weight, description,
       receiverName, receiverPhone, deliveryMethod, deliveryAddress, note,
       paymentMethod
     } = req.body;
+
+    if (!categoryId) {
+      return res.status(400).json({ message: 'Parcel category is required' });
+    }
 
     // --- HANDLE MULTIPLE IMAGES ---
     const imageUrls: string[] = [];
@@ -29,8 +33,8 @@ export const createParcel = async (req: AuthRequest, res: Response) => {
     }
 
     // --- AUTO CALCULATE PRICE ---
-    const parcelWeight = parseFloat(weight);
-    const pricing = await calculateParcelPrice(fromLocation, toLocation, parcelWeight);
+    const parcelWeight = weight !== undefined && weight !== '' ? parseFloat(weight) : undefined;
+    const pricing = await calculateParcelPrice(fromLocation, toLocation, categoryId, parcelWeight);
 
     const parcel = await prisma.parcel.create({
       data: {
@@ -38,6 +42,7 @@ export const createParcel = async (req: AuthRequest, res: Response) => {
         name,
         fromLocation,
         toLocation,
+        categoryId,
         weight: parcelWeight,
         description,
         imageUrls, // Save the array of images

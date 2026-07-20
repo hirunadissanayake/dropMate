@@ -76,7 +76,8 @@ export const requestMatch = async (req: AuthRequest, res: Response) => {
     }
 
     // Check if trip has enough capacity (Preliminary check)
-    if (trip.usedCapacity + parcel.weight > trip.capacityKg) {
+    // Fixed-fare parcels (e.g. Vehicle) have no weight and don't count against kg capacity
+    if (trip.usedCapacity + (parcel.weight ?? 0) > trip.capacityKg) {
       return res.status(400).json({ message: 'Trip does not have enough capacity for this parcel' });
     }
 
@@ -192,9 +193,11 @@ export const acceptMatch = async (req: AuthRequest, res: Response) => {
     }
 
     // Final Capacity Check
+    // Fixed-fare parcels (e.g. Vehicle) have no weight and don't count against kg capacity
     const trip = match.trip;
     const parcel = match.parcel;
-    if (trip.usedCapacity + parcel.weight > trip.capacityKg) {
+    const parcelWeight = parcel.weight ?? 0;
+    if (trip.usedCapacity + parcelWeight > trip.capacityKg) {
       return res.status(400).json({ message: 'Cannot accept: Trip capacity exceeded' });
     }
 
@@ -210,7 +213,7 @@ export const acceptMatch = async (req: AuthRequest, res: Response) => {
       // 3. Increment trip usedCapacity
       prisma.trip.update({
         where: { id: trip.id },
-        data: { usedCapacity: { increment: parcel.weight } }
+        data: { usedCapacity: { increment: parcelWeight } }
       })
     ]);
 
