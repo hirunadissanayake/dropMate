@@ -21,7 +21,7 @@ export const requestMatch = async (req: AuthRequest, res: Response) => {
     const userId = req.user.id;
 
     // Fetch parcel and trip to verify ownership
-    const parcel = await prisma.parcel.findUnique({ where: { id: parcelId } });
+    const parcel = await prisma.parcel.findUnique({ where: { id: parcelId }, include: { category: true } });
     const trip = await prisma.trip.findUnique({ where: { id: tripId } });
 
     if (!parcel || !trip) {
@@ -115,6 +115,7 @@ export const requestMatch = async (req: AuthRequest, res: Response) => {
         tripId,
         parcelTitle: parcel.name || 'New Parcel',
         parcelWeight: parcel.weight,
+        parcelCategory: parcel.category?.name || null,
         fromLocation: parcel.fromLocation,
         toLocation: parcel.toLocation,
         senderName: requesterName,
@@ -151,7 +152,7 @@ export const getPendingMatches = async (req: AuthRequest, res: Response) => {
         )
       },
       include: {
-        parcel: { include: { sender: { select: { id: true, name: true, phone: true, travelerRating: true, customerRating: true } } } },
+        parcel: { include: { sender: { select: { id: true, name: true, phone: true, travelerRating: true, customerRating: true } }, category: true } },
         trip: { 
           include: { 
             traveler: { select: { id: true, name: true, travelerRating: true, customerRating: true, selfieUrl: true } }

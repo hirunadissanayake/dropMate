@@ -206,6 +206,7 @@ export const getParcelById = async (req: AuthRequest, res: Response) => {
     const parcel = await prisma.parcel.findUnique({
       where: { id: id },
       include: {
+        category: true,
         sender: { select: { id: true, name: true, phone: true, travelerRating: true, customerRating: true, selfieUrl: true } },
         matches: {
           include: {
