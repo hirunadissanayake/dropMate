@@ -8,6 +8,8 @@ interface AuthRequest extends Request {
   user?: any;
 }
 
+// This middleware checks if the user is authenticated by verifying the JWT token in the request headers. If the token is valid, it decodes the token and attaches the user information to the request object. If the token is missing or invalid, it responds with a 401 Unauthorized status.
+
 export const protect = (req: AuthRequest, res: Response, next: NextFunction) => {
   let token;
 
