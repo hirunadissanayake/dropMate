@@ -37,6 +37,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 import { sendPushNotification } from './utils/firebase';
+import { startParcelReminders } from './utils/parcelReminders';
 
 // Prisma Client
 import { PrismaClient } from '@prisma/client';
@@ -270,4 +271,5 @@ const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
+  startParcelReminders(prisma);
 });

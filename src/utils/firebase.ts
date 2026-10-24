@@ -70,4 +70,33 @@ export const sendPushNotification = async (token: string, title: string, body: s
     }
 };
 
+// No top-level notification/data: only Apple devices receive a visible reminder.
+// Android keeps the original delivery-request notification and alert behavior.
+export const sendIOSParcelReminder = async (
+    token: string, title: string, body: string, data: Record<string, unknown>, matchId: string,
+) => {
+    const payload: Record<string, string> = {};
+    for (const [key, value] of Object.entries(data)) payload[key] = String(value);
+    return admin.messaging().send({
+        token,
+        apns: {
+            headers: {
+                'apns-push-type': 'alert',
+                'apns-priority': '10',
+                // Never queue reminders for delivery after a device reconnects.
+                'apns-expiration': '0',
+                'apns-collapse-id': `match_${matchId}`,
+            },
+            payload: {
+                ...payload,
+                aps: {
+                    alert: { title, body },
+                    sound: 'request_alert.caf',
+                    threadId: `match_${matchId}`,
+                },
+            },
+        },
+    });
+};
+
 export default admin;
