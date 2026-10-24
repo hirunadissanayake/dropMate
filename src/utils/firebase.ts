@@ -51,7 +51,7 @@ export const sendPushNotification = async (token: string, title: string, body: s
                         // Keep Android's MP3/raw resource name in android.notification.
                         sound: sound === 'request_alert.mp3'
                             ? 'request_alert.caf'
-                            : (sound || (tag ? undefined : 'default')),
+                            : (sound || 'default'),
                     },
                 },
             },
