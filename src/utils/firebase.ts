@@ -2,7 +2,9 @@ import * as admin from 'firebase-admin';
 import path from 'path';
 
 try {
-    const serviceAccountPath = path.join(__dirname, '../../serviceAccountKey.json');
+    // Render can supply a fresh service-account JSON as a secret file.
+    const serviceAccountPath = process.env.GOOGLE_APPLICATION_CREDENTIALS
+        || path.join(__dirname, '../../serviceAccountKey.json');
     
     admin.initializeApp({
         credential: admin.credential.cert(serviceAccountPath),
