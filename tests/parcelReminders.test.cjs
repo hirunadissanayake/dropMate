@@ -11,7 +11,7 @@ const { sendDueParcelReminders } = require('../dist/utils/parcelReminders');
 
 function fixture() {
   const start = Date.parse('2026-01-01T00:00:00Z');
-  let time = start + 30_000;
+  let time = start + 25_000;
   let status = 'PENDING';
   let parcelStatus = 'PENDING';
   let tripStatus = 'ACTIVE';
@@ -52,7 +52,7 @@ function fixture() {
   };
 }
 
-test('first reminder at 30 seconds, next at 60; no duplicate or catch-up burst', async () => {
+test('first reminder at 25 seconds, next at 50; no duplicate or catch-up burst', async () => {
   const f = fixture();
   f.advance(-1);
   await f.run();
@@ -61,7 +61,7 @@ test('first reminder at 30 seconds, next at 60; no duplicate or catch-up burst',
   await f.run();
   await f.run();
   assert.equal(f.sent.length, 1);
-  f.advance(30_000);
+  f.advance(25_000);
   await f.run();
   assert.equal(f.sent.length, 2);
   f.advance(180_000);
@@ -70,6 +70,8 @@ test('first reminder at 30 seconds, next at 60; no duplicate or catch-up burst',
   assert.equal(f.sent[0][3].createdAt, '2026-01-01T00:00:00.000Z');
   assert.equal(f.sent[0][3].notificationId, 'notification-1');
   assert.equal(f.sent[0][3]._iosParcelReminderSlot, undefined);
+  assert.equal(f.sent[0][1], 'Pending delivery request');
+  assert.match(f.sent[0][2], /existing parcel request/);
 });
 
 test('concurrent workers and a restarted worker claim an interval only once', async () => {
@@ -84,7 +86,7 @@ for (const status of ['ACCEPTED', 'REJECTED', 'CANCELLED', 'COMPLETED']) {
     const f = fixture();
     await f.run();
     f.status(status);
-    f.advance(30_000);
+    f.advance(25_000);
     await f.run();
     assert.equal(f.sent.length, 1);
   });
@@ -92,7 +94,7 @@ for (const status of ['ACCEPTED', 'REJECTED', 'CANCELLED', 'COMPLETED']) {
 
 test('expiry stops reminders even when the closed app has not called the expiry API', async () => {
   const f = fixture();
-  f.advance(570_000);
+  f.advance(575_000);
   await f.run();
   assert.equal(f.sent.length, 0);
 });
@@ -121,7 +123,7 @@ test('failed send is not retried in a burst; later interval can try again', asyn
   await f.run();
   await f.run();
   assert.equal(attempts, 1);
-  f.advance(30_000);
+  f.advance(25_000);
   await f.run();
   assert.equal(attempts, 2);
 });
@@ -148,4 +150,40 @@ test('reminder payload is Apple-only, uses CAF, and cannot queue stale offline a
   assert.equal(message.apns.payload.type, 'DELIVERY_REQUEST');
   assert.equal(message.apns.headers['apns-expiration'], '0');
   assert.equal(message.apns.headers['apns-collapse-id'], 'match_match-1');
+});
+
+test('original push and reminders replace one iOS card per match, with separate cards for different matches', async () => {
+  const sent = [];
+  const mockAdmin = {
+    credential: { cert: () => ({}) }, initializeApp() {},
+    messaging: () => ({ send: async message => { sent.push(message); return 'test-message'; } }),
+  };
+  const sandbox = {
+    exports: {}, __dirname: path.dirname(firebasePath), process: { env: {} },
+    console: { log() {}, error() {} },
+    require: id => id === 'firebase-admin' ? mockAdmin : require(id),
+  };
+  vm.runInNewContext(fs.readFileSync(firebasePath, 'utf8'), sandbox);
+  const data = { type: 'DELIVERY_REQUEST', matchId: 'match-1', notificationId: 'notification-1' };
+  await sandbox.exports.sendPushNotification('test-token', 'Request', 'Parcel', data, 'request_alert.mp3', 'match_match-1');
+  await sandbox.exports.sendIOSParcelReminder('test-token', 'Reminder', 'Existing parcel', data, 'match-1');
+  await sandbox.exports.sendIOSParcelReminder('test-token', 'Reminder', 'Existing parcel', data, 'match-1');
+  for (const message of sent) {
+    assert.equal(message.apns.headers['apns-collapse-id'], 'match_match-1');
+    assert.equal(message.apns.payload.aps.threadId, 'match_match-1');
+    assert.equal(message.apns.payload.aps.sound, 'request_alert.caf');
+  }
+  assert.equal(sent[0].android.notification.tag, 'match_match-1');
+  assert.equal(sent[0].android.collapseKey, 'match_match-1');
+  assert.equal(sent[0].android.notification.sound, 'request_alert');
+  assert.equal(sent[0].data.notificationId, 'notification-1');
+  assert.equal(sent[1].apns.payload.notificationId, 'notification-1');
+  await sandbox.exports.sendPushNotification('test-token', 'Request', 'Other parcel',
+    { ...data, matchId: 'match-2' }, 'request_alert.mp3');
+  assert.equal(sent[3].apns.headers['apns-collapse-id'], 'match_match-2');
+  assert.notEqual(sent[3].apns.headers['apns-collapse-id'], sent[0].apns.headers['apns-collapse-id']);
+  await sandbox.exports.sendPushNotification('test-token', 'Announcement', 'News', { type: 'GENERAL' });
+  assert.equal(sent[4].apns.headers, undefined);
+  assert.equal(sent[4].apns.payload.aps.threadId, undefined);
+  assert.equal(sent[4].apns.payload.aps.sound, 'default');
 });

@@ -15,6 +15,8 @@ try {
     console.error('❌ Error initializing Firebase Admin:', error);
 }
 
+const iosParcelNotificationId = (matchId: string) => `match_${matchId}`;
+
 export const sendPushNotification = async (token: string, title: string, body: string, data?: any, sound?: string, tag?: string) => {
     try {
         // FCM 'data' field values must be strings
@@ -27,6 +29,11 @@ export const sendPushNotification = async (token: string, title: string, body: s
         
         // Add standard click action for background handling
         stringifiedData.click_action = 'FLUTTER_NOTIFICATION_CLICK';
+
+        const isParcelRequest = data?.type === 'DELIVERY_REQUEST' || data?.type === 'match_request';
+        const iosParcelId = isParcelRequest && typeof data?.matchId === 'string'
+            ? iosParcelNotificationId(data.matchId)
+            : undefined;
 
         // Standard structure with top-level notification for reliability
         const message: any = {
@@ -45,8 +52,12 @@ export const sendPushNotification = async (token: string, title: string, body: s
                 },
             },
             apns: {
+                // Use the same ID from the very first push through every reminder.
+                // threadId groups cards; collapse ID replaces the existing card.
+                ...(iosParcelId ? { headers: { 'apns-collapse-id': iosParcelId } } : {}),
                 payload: {
                     aps: {
+                        ...(iosParcelId ? { threadId: iosParcelId } : {}),
                         // iOS notification audio uses the bundled short CAF clip.
                         // Keep Android's MP3/raw resource name in android.notification.
                         sound: sound === 'request_alert.mp3'
@@ -85,14 +96,14 @@ export const sendIOSParcelReminder = async (
                 'apns-priority': '10',
                 // Never queue reminders for delivery after a device reconnects.
                 'apns-expiration': '0',
-                'apns-collapse-id': `match_${matchId}`,
+                'apns-collapse-id': iosParcelNotificationId(matchId),
             },
             payload: {
                 ...payload,
                 aps: {
                     alert: { title, body },
                     sound: 'request_alert.caf',
-                    threadId: `match_${matchId}`,
+                    threadId: iosParcelNotificationId(matchId),
                 },
             },
         },

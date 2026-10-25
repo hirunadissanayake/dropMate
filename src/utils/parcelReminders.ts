@@ -1,7 +1,7 @@
 import { Prisma, PrismaClient } from '@prisma/client';
 import { sendIOSParcelReminder } from './firebase';
 
-export const REMINDER_INTERVAL_MS = 30_000;
+export const REMINDER_INTERVAL_MS = 25_000;
 export const REQUEST_WINDOW_MS = 10 * 60_000;
 const SLOT_KEY = '_iosParcelReminderSlot';
 
@@ -61,7 +61,10 @@ export async function sendDueParcelReminders(
         const current = await eligibleMatch();
         if (!current?.traveler.fcmToken) continue;
         const { [SLOT_KEY]: ignored, ...data } = metadata;
-        await send(current.traveler.fcmToken, notification.title, notification.body, {
+        const parcelTitle = typeof metadata.parcelTitle === 'string'
+          ? ` for "${metadata.parcelTitle}"` : '';
+        await send(current.traveler.fcmToken, 'Pending delivery request',
+          `Your existing parcel request${parcelTitle} is still waiting. Open DropMate to accept or decline.`, {
           ...data,
           type: 'DELIVERY_REQUEST',
           notificationId: notification.id,
