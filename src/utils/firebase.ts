@@ -31,7 +31,8 @@ export const sendPushNotification = async (token: string, title: string, body: s
         stringifiedData.click_action = 'FLUTTER_NOTIFICATION_CLICK';
 
         const isParcelRequest = data?.type === 'DELIVERY_REQUEST' || data?.type === 'match_request';
-        const iosParcelId = isParcelRequest && typeof data?.matchId === 'string'
+        const isRequestClosed = data?.type === 'MATCH_CANCELLED' || data?.type === 'MATCH_EXPIRED';
+        const iosParcelId = (isParcelRequest || isRequestClosed) && typeof data?.matchId === 'string'
             ? iosParcelNotificationId(data.matchId)
             : undefined;
 
@@ -54,15 +55,19 @@ export const sendPushNotification = async (token: string, title: string, body: s
             apns: {
                 // Use the same ID from the very first push through every reminder.
                 // threadId groups cards; collapse ID replaces the existing card.
-                ...(iosParcelId ? { headers: { 'apns-collapse-id': iosParcelId } } : {}),
+                ...(iosParcelId ? { headers: {
+                    'apns-collapse-id': iosParcelId,
+                    'apns-expiration': '0',
+                } } : {}),
                 payload: {
                     aps: {
                         ...(iosParcelId ? { threadId: iosParcelId } : {}),
                         // iOS notification audio uses the bundled short CAF clip.
                         // Keep Android's MP3/raw resource name in android.notification.
-                        sound: sound === 'request_alert.mp3'
+                        // Withdrawal replaces the ringing card silently.
+                        ...(isRequestClosed ? { contentAvailable: true } : { sound: sound === 'request_alert.mp3'
                             ? 'request_alert.caf'
-                            : (sound || 'default'),
+                            : (sound || 'default') }),
                     },
                 },
             },

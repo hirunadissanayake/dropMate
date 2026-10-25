@@ -617,10 +617,13 @@ export const cancelMatch = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: 'Cannot cancel — request has already been accepted or closed' });
     }
 
-    await prisma.match.update({
-      where: { id },
+    const cancelled = await prisma.match.updateMany({
+      where: { id, status: 'PENDING' },
       data: { status: 'CANCELLED' }
     });
+    if (cancelled.count !== 1) {
+      return res.status(400).json({ message: 'Cannot cancel — request has already been accepted or closed' });
+    }
 
     // 🔌 Emit real-time socket event → traveler's modal auto-closes instantly
     try {

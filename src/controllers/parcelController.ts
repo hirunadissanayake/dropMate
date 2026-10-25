@@ -4,6 +4,7 @@ import { PrismaClient } from '@prisma/client';
 import { calculateParcelPrice } from '../utils/priceCalculator';
 import { createNotification } from './notificationController';
 import { notifyAdmins } from '../utils/notificationHelpers';
+import { io } from '../index';
 
 
 const prisma = new PrismaClient();
@@ -143,16 +144,31 @@ export const cancelParcel = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ message: 'Cannot cancel parcel that is already matched or shipped' });
     }
 
-    await prisma.parcel.update({
-      where: { id },
-      data: { status: 'CANCELLED' }
+    const cancelledMatches = await prisma.$transaction(async tx => {
+      await tx.parcel.update({ where: { id }, data: { status: 'CANCELLED' } });
+      const pending = await tx.match.findMany({
+        where: { parcelId: id, status: 'PENDING' },
+        select: { id: true, travelerId: true },
+      });
+      await tx.match.updateMany({
+        where: { parcelId: id, status: 'PENDING' },
+        data: { status: 'CANCELLED' },
+      });
+      return pending;
     });
 
-    // Also cancel any pending matches
-    await prisma.match.updateMany({
-      where: { parcelId: id, status: 'PENDING' },
-      data: { status: 'CANCELLED' }
-    });
+    // Whole-parcel cancellation must close traveler alerts just like withdrawing
+    // one match; previously this path only changed database rows.
+    for (const match of cancelledMatches) {
+      io.to(match.travelerId).emit('request_cancelled', { matchId: match.id });
+      await createNotification({
+        userId: match.travelerId,
+        type: 'MATCH_CANCELLED',
+        title: 'Delivery Request Withdrawn',
+        body: `The sender has cancelled the parcel "${parcel.name || 'Package'}".`,
+        metadata: { matchId: match.id, parcelId: id },
+      });
+    }
 
     res.status(200).json({ message: 'Parcel cancelled successfully' });
   } catch (error) {

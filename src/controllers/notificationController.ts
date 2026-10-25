@@ -145,6 +145,16 @@ export const createNotification = async (params: {
     });
 
     if (user?.fcmToken) {
+      // The original push can race with withdrawal while its notification/token
+      // are being loaded. Never send a new parcel alert for a closed match.
+      const matchId = (params.metadata as any)?.matchId;
+      if (params.type === 'DELIVERY_REQUEST' && typeof matchId === 'string') {
+        const pending = await prisma.match.findFirst({
+          where: { id: matchId, status: 'PENDING', parcel: { status: 'PENDING' } },
+          select: { id: true },
+        });
+        if (!pending) return;
+      }
       console.log(`📡 Sending Push Notification to user ${params.userId}...`);
       
       // Use custom sound for high-priority delivery requests

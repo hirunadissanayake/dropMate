@@ -20,6 +20,18 @@ are titled "Pending delivery request" and explicitly refer to the existing
 request. Old notifications delivered before this change may need to be cleared
 manually; verify with a newly created request after deploying.
 
+Withdrawal and expiry pushes replace that same card without a sound. Initial
+parcel alerts also use APNs expiration zero so they cannot sit queued while the
+device is offline. Whole-parcel cancellation notifies affected travelers, just
+like cancelling an individual match. The original push rechecks the match before
+sending, and the reminder worker rechecks it before each reminder.
+
+The updated app closes its modal on cancellation from either sockets or push,
+removes queued/closed requests, and validates iOS requests against the pending
+matches API before showing them. A new app build is required for these client
+changes. A notification sound already started by iOS can still finish its clip;
+remote cancellation cannot guarantee interruption of that system-owned sound.
+
 The original notification's metadata stores `_iosParcelReminderSlot`. An atomic
 compare-and-set claims each interval once across server instances and restarts.
 Missed intervals are skipped rather than replayed. Failed sends can try again at
@@ -33,7 +45,7 @@ zero to avoid queued delivery after reconnection, and a per-match collapse ID.
 ## Validate and deploy
 
 Run `npm ci`, `npm run build`, then
-`node --test tests/parcelReminders.test.cjs`. Tests mock Firebase and the database;
+`node --test tests/*.test.cjs`. Tests mock Firebase and the database;
 they do not send notifications or read service-account secrets.
 
 Deploy this backend revision to Render with build command `npm ci && npm run build`
